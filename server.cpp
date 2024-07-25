@@ -1,15 +1,17 @@
-#include <boost/asio.hpp>       // 包含 Boost.Asio 的主要接口
-#include <iostream>             // 用于输入输出流
-#include <memory>               // 用于 std::shared_ptr 和 std::make_shared
-#include <vector>               // 用于 std::vector
-#include <thread>               // 用于 std::thread 和 std::this_thread::sleep_for
-#include <cstdlib>              // 用于 std::atoi
+#include <boost/asio.hpp>
+#include <iostream>
+#include <memory>
+#include <vector>
+#include <thread>
+#include <cstdlib>
 
 using boost::asio::ip::tcp;
 
 class Session : public std::enable_shared_from_this<Session> {
 public:
-    Session(tcp::socket socket) : socket_(std::move(socket)) {}
+    Session(tcp::socket socket) : socket_(std::move(socket)) {
+        std::cout << "New session started.\n";
+    }
 
     void start() {
         do_read();
@@ -21,7 +23,10 @@ private:
         socket_.async_read_some(boost::asio::buffer(data_, max_length),
             [this, self](boost::system::error_code ec, std::size_t length) {
                 if (!ec) {
+                    std::cout << "Received: " << std::string(data_, length) << "\n";
                     do_write(length);
+                } else {
+                    std::cerr << "Read error: " << ec.message() << "\n";
                 }
             });
     }
@@ -29,9 +34,12 @@ private:
     void do_write(std::size_t length) {
         auto self(shared_from_this());
         boost::asio::async_write(socket_, boost::asio::buffer(data_, length),
-            [this, self](boost::system::error_code ec, std::size_t /*length*/) {
+            [this, self, length](boost::system::error_code ec, std::size_t /*length*/) {
                 if (!ec) {
+                    std::cout << "Sent: " << std::string(data_, length) << "\n";
                     do_read();
+                } else {
+                    std::cerr << "Write error: " << ec.message() << "\n";
                 }
             });
     }
@@ -45,6 +53,7 @@ class Server {
 public:
     Server(boost::asio::io_context& io_context, short port)
         : acceptor_(io_context, tcp::endpoint(tcp::v4(), port)) {
+        std::cout << "Server started on port " << port << "\n";
         do_accept();
     }
 
@@ -53,7 +62,10 @@ private:
         acceptor_.async_accept(
             [this](boost::system::error_code ec, tcp::socket socket) {
                 if (!ec) {
+                    std::cout << "Accepted connection from client.\n";
                     std::make_shared<Session>(std::move(socket))->start();
+                } else {
+                    std::cerr << "Accept error: " << ec.message() << "\n";
                 }
                 do_accept();
             });
