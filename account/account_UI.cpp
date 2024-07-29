@@ -43,7 +43,10 @@ void LogInUI() {
 
         if (accountManager.login(username, password)==1) {
             //调用
+        } else {
+            MainMenuUI();
         }
+
     }
 }
 
@@ -61,8 +64,7 @@ void SignUpUI() {
         std::cout << "请输入你的密码：";
         std::cin >> password;
 
-        if (accountManager.signup(username, password)==1) {
-            MainMenuUI();
-        }
+        accountManager.signup(username, password);
+        MainMenuUI();
     }
 }
