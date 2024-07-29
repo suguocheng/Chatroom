@@ -1,11 +1,11 @@
 #include "Account.h"
-
+#include "../Home/Home.h"
 int main() {
-    MainMenuUI();
+    MainMenu_UI();
     return 0;
 }
 
-void MainMenuUI() {
+void MainMenu_UI() {
     int n;
     while (1) {
         system("clear");
@@ -16,18 +16,21 @@ void MainMenuUI() {
         std::cout << "请输入：";
         std::cin >> n;
         if (n == 1) {
-            LogInUI();
-        } else if(n == 2) {
-            SignUpUI();
-        } else if(n == 3) {
+            LogIn_UI();
+        } else if (n == 2) {
+            SignUp_UI();
+        } else if (n == 3) {
             exit(0);
         } else {
             std::cout << "请正确输入选项！" << std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
         }
     }
 }
 
-void LogInUI() {
+void LogIn_UI() {
     while (1) {
         system("clear");
         std::cout << "登录" << std::endl;
@@ -42,15 +45,15 @@ void LogInUI() {
         std::cin >> password;
 
         if (accountManager.login(username, password)==1) {
-            //调用
+            Home_UI();
+            return;
         } else {
-            MainMenuUI();
+            return;
         }
-
     }
 }
 
-void SignUpUI() {
+void SignUp_UI() {
     while (1) {
         system("clear");
         std::cout << "注册" << std::endl;
@@ -65,6 +68,6 @@ void SignUpUI() {
         std::cin >> password;
 
         accountManager.signup(username, password);
-        MainMenuUI();
+        return;
     }
 }

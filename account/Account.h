@@ -3,9 +3,9 @@
 #include <string>
 #include <hiredis/hiredis.h>
 
-void MainMenuUI();
-void LogInUI();
-void SignUpUI();
+void MainMenu_UI();
+void LogIn_UI();
+void SignUp_UI();
 
 class AccountManager {
 public:
