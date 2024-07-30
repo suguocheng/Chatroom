@@ -1,11 +1,12 @@
 #include "Home.h"
+#include "../account/Account.h"
 
 // int main() {
 //     Home_UI();
 //     return 0;
 // }
 
-void Home_UI() {
+void home_UI(const std::string& username) {
     int n;
     while (1) {
         system("clear");
@@ -16,11 +17,11 @@ void Home_UI() {
         std::cout << "请输入：";
         std::cin >> n;
         if (n == 1) {
-            Message_UI();
+            message_UI();
         } else if (n == 2) {
-            Contacts_UI();
+            contacts_UI();
         } else if (n == 3) {
-            if (User_UI()==1) {
+            if (user_UI(username)==1) {
                 return;
             }
         } else {
@@ -32,7 +33,7 @@ void Home_UI() {
     }
 }
 
-void Message_UI() {
+void message_UI() {
     char n;
     while (1) {
         system("clear");
@@ -47,7 +48,7 @@ void Message_UI() {
     }
 }
 
-void Contacts_UI() {
+void contacts_UI() {
     int n;
     while (1) {
         system("clear");
@@ -60,11 +61,11 @@ void Contacts_UI() {
         std::cout << "请输入：";
         std::cin >> n;
         if (n == 1) {
-            Friends_UI();
+            friends_UI();
         } else if (n == 2) {
-            Group_UI();
+            groups_UI();
         } else if (n == 3) {
-            AddFriendsGroup_UI();
+            add_friends_groups_UI();
         } else if (n == 4) {
             //创建群聊
         } else if (n == 5) {
@@ -78,7 +79,7 @@ void Contacts_UI() {
     }
 }
 
-void Friends_UI() {
+void friends_UI() {
     char n;
     while (1) {
         system("clear");
@@ -93,7 +94,7 @@ void Friends_UI() {
     }
 }
 
-void Group_UI() {
+void groups_UI() {
     char n;
     while (1) {
         system("clear");
@@ -108,7 +109,7 @@ void Group_UI() {
     }
 }
 
-void AddFriendsGroup_UI() {
+void add_friends_Groups_UI() {
     int n;
     while (1) {
         system("clear");
@@ -133,21 +134,27 @@ void AddFriendsGroup_UI() {
     }
 }
 
-bool User_UI() {
+bool user_UI(const std::string& username) {
     int n;
     while (1) {
         system("clear");
         std::cout << "个人中心" << std::endl;
-        std::cout << "1.退出帐号" << std::endl; 
-        std::cout << "2.注销帐号" << std::endl;
-        std::cout << "3.返回" << std::endl;
+        std::cout << "1.个人信息" << std::endl;
+        std::cout << "2.更改密码" << std::endl;
+        std::cout << "3.退出帐号" << std::endl;
+        std::cout << "4.注销帐号" << std::endl;
+        std::cout << "5.返回" << std::endl;
         std::cout << "请输入：";
         std::cin >> n;
         if (n == 1) {
-            return 1;
+            information_UI(username);
         } else if (n == 2) {
-            
+            change_password_UI(username);
         } else if (n == 3) {
+            return 1;
+        } else if (n == 4) {
+            log_out_UI(username);
+        } else if (n == 5) {
             return 0;
         } else {
             std::cout << "请正确输入选项！" << std::endl;
@@ -156,4 +163,101 @@ bool User_UI() {
             std::cin.get(); // 等待用户输入
         }
     }
+}
+
+void information_UI(const std::string& username) {
+    int n;
+    while (1) {
+        system("clear");
+        std::cout << "个人信息" << std::endl;
+        std::cout << "1.用户名" << std::endl; 
+        std::cout << "2.UID" <<  std::endl;
+        std::cout << "3.电子邮箱" << std::endl;
+        std::cout << "4.返回" << std::endl;
+        std::cout << "请输入：";
+        std::cin >> n;
+        if (n == 1) {
+            username_UI(username);
+        } else if (n == 2) {
+            AccountManager accountManager("127.0.0.1", 6379);
+            system("clear");
+            std::cout << "\033[31m" << accountManager.get_UID(username) << "\033[0m" << std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
+        } else if (n == 3) {
+            email_UI(username);
+        } else if (n == 3) {
+            return;
+        } else {
+            std::cout << "请正确输入选项！" << std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
+        }
+    }
+}
+
+void username_UI(const std::string& username){
+    int n;
+    while (1) {
+        system("clear");
+        std::cout << "用户名" << std::endl;
+        std::cout << "1.用户名：" << username << std::endl;
+        std::cout << "2.更改用户名" << std::endl;
+        std::cout << "3.返回" << std::endl;
+        std::cout << "请输入：";
+        std::cin >> n;
+        if (n == 1) {
+            system("clear");
+            std::cout << "\033[31m" << username << "\033[0m" <<std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
+        } else if (n == 2) {
+            change_usename_UI(username);
+        } else if (n == 3) {
+            return;
+        } else {
+            std::cout << "请正确输入选项！" << std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
+        }
+    }
+}
+
+void email_UI(const std::string& username) {
+    int n;
+    AccountManager accountManager("127.0.0.1", 6379);
+
+    while (1) {
+        system("clear");
+        std::cout << "电子邮箱" << std::endl;
+        std::cout << "1.电子邮箱：" << accountManager.get_email(username) << std::endl;
+        std::cout << "2.更改电子邮箱" << std::endl;
+        std::cout << "3.返回" << std::endl;
+        std::cout << "请输入：";
+        std::cin >> n;
+        if (n == 1) {
+            system("clear");
+            std::cout << "\033[31m" << username << "\033[0m" <<std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
+        } else if (n == 2) {
+            change_emaill_UI(username);
+        } else if (n == 3) {
+            return;
+        } else {
+            std::cout << "请正确输入选项！" << std::endl;
+            std::cout << "按任意键继续..." << std::endl;
+            std::cin.ignore();
+            std::cin.get(); // 等待用户输入
+        }
+    }
+}
+
+void add_friends_groups_UI() {
+
 }
