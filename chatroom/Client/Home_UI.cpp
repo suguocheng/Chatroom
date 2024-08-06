@@ -195,17 +195,16 @@ void add_friend_UI(int connecting_sockfd, std::string UID) {
     j["type"] = "add_friend";
     std::string search_UID;
 
+    j["UID"] = UID;
+
     std::cout << "搜索(请输入用户UID)：";
     std::cin >> search_UID;
-    j["UID"] = search_UID;
+    j["search_UID"] = search_UID;
 
+    send_json(connecting_sockfd, j);
     
-
-
-
-
-        
-    
+    usleep(50000);
+    waiting_for_input();
 }
 
 void add_group_UI() {

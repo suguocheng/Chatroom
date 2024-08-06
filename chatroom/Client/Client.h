@@ -22,6 +22,7 @@ public:
 
     void do_write();
     void do_read();
+    void heartbeat();
     
 private:
     int connecting_sockfd;

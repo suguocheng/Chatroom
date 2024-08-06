@@ -25,7 +25,7 @@ public:
     bool modify_security_question(const std::string& UID, const std::string& new_security_question, const std::string& new_security_answer);
     bool delete_user(const std::string& UID);
 
-    bool add_friend(const std::string& userId, const std::string& friendId);
+    bool add_friend(const std::string& UID, const std::string& search_UID);
     bool get_friend();
     bool modify_friend();
     bool delete_friend();

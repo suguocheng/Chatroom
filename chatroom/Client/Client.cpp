@@ -1,7 +1,7 @@
 #include "Client.h"
 #include "../log/mars_logger.h"
 
-Client::Client(int port) : pool(2){
+Client::Client(int port) : pool(5){
     //创建套接字
     connecting_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (connecting_sockfd < 0) {
@@ -21,72 +21,12 @@ Client::Client(int port) : pool(2){
         throw std::runtime_error("Failed to connect to server: " + std::string(strerror(errno)));
     }
 
-    //设置套接字为非阻塞模式，这个要放到连接服务器后面
-    // int flags = fcntl(connecting_sockfd, F_GETFL, 0);
-    // if (flags == -1) {
-    //     std::cerr << "fcntl(F_GETFL) failed" << std::endl;
-    //     return;
-    // }
-    // if (fcntl(connecting_sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    //     std::cerr << "fcntl(F_SETFL) failed" << std::endl;
-    // }
-
-    //创建epoll
-    // epfd = epoll_create1(0);
-    // if (epfd < 0) {
-    //     throw std::runtime_error("Failed to create epoll instance");
-    // }
-
-    //注册套接字到epoll（ET 模式），用于描述希望epoll监视的事件
-    // struct epoll_event event;
-    // event.events = EPOLLIN | EPOLLET; // 读写事件以及边缘触发模式
-    // event.data.fd = connecting_sockfd;
-
-    //监视事件
-    // if (epoll_ctl(epfd, EPOLL_CTL_ADD, connecting_sockfd, &event) < 0) {
-    //     throw std::runtime_error("Failed to add socket to epoll");
-    // }
-    
-    // pid_t pid = fork();
-
-    // if (pid < 0) {
-    //     // fork() 失败
-    //     std::cerr << "fork failed" << std::endl;
-
-    // } else if (pid == 0) {
-    //     // 子进程
-    //     main_menu_UI(connecting_sockfd);
-    // } else {
-    //     // 父进程
-    //     while (1) {
-    //         //等待事件并处理，将事件添加到事件数组中
-    //         int num_events = epoll_wait(epfd, events.data(), events.size(), -1);
-    //         if (num_events < 0) {
-    //             std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
-    //             continue;
-    //         }
-
-    //         //遍历事件数组
-    //         for (int i = 0; i < num_events; ++i) {
-    //             if (events[i].events & EPOLLIN) {
-    //                 pool.add_task([this] {
-    //                     do_read();
-    //                 });
-    //             } else if (events[i].events & EPOLLOUT) {
-    //                 // pool.add_task([this] {
-    //                 //     do_write();
-    //                 // });
-    //             }
-    //         }
-    //     }
-    // }
-
-    // pool.add_task([this] {
-    //     main_menu_UI(connecting_sockfd);
-    // });
-
     pool.add_task([this] {
         do_read();
+    });
+    
+    pool.add_task([this] {
+        heartbeat();
     });
 
     main_menu_UI(connecting_sockfd);
@@ -210,6 +150,10 @@ void Client::do_read() {
         } else if (j["type"] == "get_security_question") {
             std::cout << j["security_question"] << std::endl;
 
+        } else if (j["type"] == "add_friend") {
+
+        } else if (j["type"] == "") {
+            
         }
     }
 
@@ -231,3 +175,14 @@ void Client::do_read() {
     // }
 }
 
+void Client::heartbeat() 
+{
+    while (1) 
+    {
+        std::string msg = "heartbeat";
+        usleep(1000000); // 暂停1秒
+        j["type"] = "heartbeat";
+        j["msg"] = msg;
+        send_json(connecting_sockfd, j);
+    }
+}

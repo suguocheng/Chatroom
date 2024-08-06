@@ -24,8 +24,8 @@ public:
     
 private:
     void do_read(int connected_sockfd);
-    void do_storage(int connected_sockfd);
     void do_write(int connected_sockfd, const json& j);
+    void heartbeat(int connected_sockfd);
 
     int listening_sockfd;
     struct sockaddr_in addr;
@@ -38,5 +38,6 @@ private:
 
     RedisManager redisManager;
 
-    std::unordered_map<std::string, int> id_sockmap;
+    std::unordered_map<std::string, int> map;
 };
+

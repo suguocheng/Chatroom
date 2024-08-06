@@ -280,3 +280,14 @@ bool RedisManager::delete_user(const std::string& UID) {
 
     return 1;
 }
+
+bool RedisManager::add_friend(const std::string& UID, const std::string& search_UID) {
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SADD friends:%s %s", UID, search_UID);
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    freeReplyObject(reply);
+    return 1;
+}

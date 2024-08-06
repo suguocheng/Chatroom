@@ -130,96 +130,117 @@ void Server::do_read(int connected_sockfd) {
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
 
-    while (1) {
+    // while (1) {
 
-        ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
-        if (received_len < 0) {
-            perror("recvmsg");
-            return;
+    ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
+    if (received_len < 0) {
+        perror("recvmsg");
+        return;
+    }
+
+    if (received_len == 0 || buf[0] == '\0') {
+        return; // 继续等待下一个数据
+    }
+
+    buf[received_len] = '\0'; // 确保字符串结束符
+
+    // LogInfo("buf: {}", buf);
+
+    try {
+        j = json::parse(buf); // 解析 JSON 字符串
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+        return;
+    }
+
+    if (j["type"] == "log_in") {
+        // LogInfo("username = {}", (j["username"]))
+        if (j["password"] != redisManager.get_password(j["username"])) {
+            j["result"] = "登录失败";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
+        } else {
+            j["result"] = "登录成功";
+            j["UID"] = redisManager.get_UID(j["username"]);
+            map[j["UID"]] = connected_sockfd;
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
         }
 
-        buf[received_len] = '\0'; // 确保字符串结束符
+    } else if (j["type"] == "sign_up") {
+        if (redisManager.add_user(j["username"], j["password"], j["security_question"], j["security_answer"]) == 0) {
+            j["result"] = "注册失败";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
 
-        if (received_len == 0 || buf[0] == '\0') {
-            usleep(50000);
-            continue; // 继续等待下一个数据
+        } else {
+            j["result"] = "注册成功";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
         }
 
-        // LogInfo("buf: {}", buf);
+    } else if (j["type"] == "retrieve_password") {
+        std::string security_question = redisManager.get_security_question(j["username"]);
+        if (security_question == "") {
+            j["security_question"] = "找回失败";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
 
-        try {
-            j = json::parse(buf); // 解析 JSON 字符串
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
-            return;
+        } else {
+            j["security_question"] = security_question;
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
+        }
+        
+    } else if (j["type"] == "retrieve_password_confirm_answer") {
+        if (j["security_answer"] != redisManager.get_security_answer(j["username"])) {
+            j["password"] = "密保答案错误";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
+        } else {
+            j["password"] = redisManager.get_password(j["username"]);
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
         }
 
-        if (j["type"] == "log_in") {
-            // LogInfo("username = {}", (j["username"]))
-            if (j["password"] != redisManager.get_password(j["username"])) {
-                j["result"] = "登录失败";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
+    } else if (j["type"] == "change_usename") {
+        if (redisManager.modify_username(j["UID"], j["new_username"]) == 0) {
+            j["result"] = "修改失败";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
 
-            } else {
-                j["result"] = "登录成功";
-                j["UID"] = redisManager.get_UID(j["username"]);
-                id_sockmap[j["UID"]] = connected_sockfd;
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
+        } else {
+            j["result"] = "修改成功";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
 
-            }
+        }
 
-        } else if (j["type"] == "sign_up") {
-            if (redisManager.add_user(j["username"], j["password"], j["security_question"], j["security_answer"]) == 0) {
-                j["result"] = "注册失败";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
+    } else if (j["type"] == "change_password") {
+        if (j["old_password"] != redisManager.get_password(redisManager.get_username(j["UID"]))) {
+            j["result"] = "密码错误";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
 
-            } else {
-                j["result"] = "注册成功";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            }
-
-        } else if (j["type"] == "retrieve_password") {
-            std::string security_question = redisManager.get_security_question(j["username"]);
-            if (security_question == "") {
-                j["security_question"] = "找回失败";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            } else {
-                j["security_question"] = security_question;
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            }
-            
-        } else if (j["type"] == "retrieve_password_confirm_answer") {
-            if (j["security_answer"] != redisManager.get_security_answer(j["username"])) {
-                j["password"] = "密保答案错误";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            } else {
-                j["password"] = redisManager.get_password(j["username"]);
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            }
-
-        } else if (j["type"] == "change_usename") {
-            if (redisManager.modify_username(j["UID"], j["new_username"]) == 0) {
+        } else {
+            if (redisManager.modify_password(j["UID"], j["new_password"]) == 0) {
                 j["result"] = "修改失败";
                 pool.add_task([this, connected_sockfd, j] {
                     do_write(connected_sockfd,j);
@@ -232,122 +253,106 @@ void Server::do_read(int connected_sockfd) {
                 });
 
             }
-
-        } else if (j["type"] == "change_password") {
-            if (j["old_password"] != redisManager.get_password(redisManager.get_username(j["UID"]))) {
-                j["result"] = "密码错误";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            } else {
-                if (redisManager.modify_password(j["UID"], j["new_password"]) == 0) {
-                    j["result"] = "修改失败";
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_write(connected_sockfd,j);
-                    });
-
-                } else {
-                    j["result"] = "修改成功";
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_write(connected_sockfd,j);
-                    });
-
-                }
-            }
-
-        } else if (j["type"] == "change_security_question") {
-            // LogInfo("security_question = {}", (j["new_security_question"]));
-            // LogInfo("security_answer = {}", (j["new_security_answer"]));
-            if (j["password"] != redisManager.get_password(redisManager.get_username(j["UID"]))) {
-                j["result"] = "密码错误";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            } else {
-                if (redisManager.modify_security_question(j["UID"], j["new_security_question"], j["new_security_answer"]) == 0) {
-                    j["result"] = "修改失败";
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_write(connected_sockfd,j);
-                    });
-
-                } else {
-                    j["result"] = "修改成功";
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_write(connected_sockfd,j);
-                    });
-                    
-                }
-            }
-
-        } else if (j["type"] == "log_out") {
-            if (j["password"] != redisManager.get_password(redisManager.get_username(j["UID"]))) {
-                j["result"] = "密码错误";
-                pool.add_task([this, connected_sockfd, j] {
-                    do_write(connected_sockfd,j);
-                });
-
-            } else {
-                if (redisManager.delete_user(j["UID"]) == 0) {
-                    j["result"] = "注销失败";
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_write(connected_sockfd,j);
-                    });
-
-                } else {
-                    j["result"] = "注销成功";
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_write(connected_sockfd,j);
-                    });
-
-                }
-            }
-        } else if (j["type"] == "get_username") {
-            j["username"] = redisManager.get_username(j["UID"]);
-            pool.add_task([this, connected_sockfd, j] {
-                do_write(connected_sockfd,j);
-            });
-
-        } else if (j["type"] == "get_security_question") {
-            // LogInfo("UID = {}", (j["UID"]));
-            j["security_question"] = redisManager.get_security_question(redisManager.get_username(j["UID"]));
-            // LogInfo("security_question = {}", (j["security_question"]));
-            pool.add_task([this, connected_sockfd, j] {
-                do_write(connected_sockfd,j);
-            });
         }
+
+    } else if (j["type"] == "change_security_question") {
+        // LogInfo("security_question = {}", (j["new_security_question"]));
+        // LogInfo("security_answer = {}", (j["new_security_answer"]));
+        if (j["password"] != redisManager.get_password(redisManager.get_username(j["UID"]))) {
+            j["result"] = "密码错误";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
+        } else {
+            if (redisManager.modify_security_question(j["UID"], j["new_security_question"], j["new_security_answer"]) == 0) {
+                j["result"] = "修改失败";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_write(connected_sockfd,j);
+                });
+
+            } else {
+                j["result"] = "修改成功";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_write(connected_sockfd,j);
+                });
+                
+            }
+        }
+
+    } else if (j["type"] == "log_out") {
+        if (j["password"] != redisManager.get_password(redisManager.get_username(j["UID"]))) {
+            j["result"] = "密码错误";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
+        } else {
+            if (redisManager.delete_user(j["UID"]) == 0) {
+                j["result"] = "注销失败";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_write(connected_sockfd,j);
+                });
+
+            } else {
+                j["result"] = "注销成功";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_write(connected_sockfd,j);
+                });
+
+            }
+        }
+    } else if (j["type"] == "get_username") {
+        j["username"] = redisManager.get_username(j["UID"]);
+        pool.add_task([this, connected_sockfd, j] {
+            do_write(connected_sockfd,j);
+        });
+
+    } else if (j["type"] == "get_security_question") {
+        // LogInfo("UID = {}", (j["UID"]));
+        j["security_question"] = redisManager.get_security_question(redisManager.get_username(j["UID"]));
+        // LogInfo("security_question = {}", (j["security_question"]));
+        pool.add_task([this, connected_sockfd, j] {
+            do_write(connected_sockfd,j);
+        });
+
+    } else if (j["type"] == "add_friend") {
+        if (redisManager.get_username(j["search_UID"]) == "") {
+            j["result"] = "该用户不存在";
+            pool.add_task([this, connected_sockfd, j] {
+                do_write(connected_sockfd,j);
+            });
+
+        } else {
+            auto it = map.find("banana");
+            if (it != map.end()) {
+                std::cout << "Key 'banana' found with value " << it->second << std::endl;
+            } else {
+                std::cout << "Key 'banana' not found" << std::endl;
+            }
+
+
+
+            // if (redisManager.add_friend(j["UID"], j["search_UID"]) == 0) {
+            //     j["result"] = "申请失败";
+            //     pool.add_task([this, connected_sockfd, j] {
+            //         do_write(connected_sockfd,j);
+            //     });
+
+            // } else {
+            //     j["result"] = "申请成功";
+            //     pool.add_task([this, connected_sockfd, j] {
+            //         do_write(connected_sockfd,j);
+            //     });
+
+            // }
+        }
+
+    } else if (j["type"] == "") {
+        
     }
-
-
-
-
-    //测试客户端与服务器连通性
-    // char buffer[1024];
-    // ssize_t bytes_read = read(connected_sockfd, buffer, sizeof(buffer));
-    // if (bytes_read > 0) {
-    //     buffer[bytes_read] = '\0'; // 确保字符串结束
-    //     std::cout << "Received: " << std::string(buffer, bytes_read) << std::endl;
-
-    //     // 将接收到的消息发送回客户端
-    //     std::string response(buffer, bytes_read);
-    //     std::cout << "send: " << response << std::endl;
-    //     pool.add_task([this, connected_sockfd, response] {
-    //         do_write(connected_sockfd, response);
-    //     });
-
-    // } else if (bytes_read == 0) {
-    //     std::cout << "Client disconnected" << std::endl;
-    //     close(connected_sockfd);
-    // } else {
-    //     std::cerr << "Read error" << std::endl;
     // }
 
-}
-
-
-void Server::do_storage(int connected_sockfd) {
-    //存入redis
 }
 
 
@@ -378,12 +383,42 @@ void Server::do_write(int connected_sockfd, const json& j) {
     }
 
 
-    //测试客户端与服务器连通性
-    // ssize_t bytes_written = write(connected_sockfd, message.c_str(), message.size());
-    // if (bytes_written < 0) {
-    //     std::cerr << "Write failed: " << strerror(errno) << std::endl;
-    //     // 处理错误，例如关闭连接
-    //     close(connected_sockfd);
-    // }
 }
 
+void Server::heartbeat(int connected_sockfd) {
+    json j;
+
+    struct msghdr msg = {0};
+    struct iovec iov[1];
+    char buf[1024] = {0};
+
+    iov[0].iov_base = buf;
+    iov[0].iov_len = sizeof(buf) - 1;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 1;
+
+    ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
+    if (received_len < 0) {
+        perror("recvmsg");
+        return;
+    }
+
+    if (received_len == 0 || buf[0] == '\0') {
+        return; // 继续等待下一个数据
+    }
+
+    buf[received_len] = '\0'; // 确保字符串结束符
+
+    // LogInfo("buf: {}", buf);
+
+    try {
+        j = json::parse(buf); // 解析 JSON 字符串
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+        return;
+    }
+
+    if (j["type"] == "heartbeat") {
+        
+    }
+}
