@@ -150,14 +150,23 @@ void Client::do_recv() {
                 std::cout << notification << std::endl;
             }
             
+        } else if (j["type"] == "agree_to_friend_request") {
+            std::cout << j["result"] << std::endl;
+
         } else if (j["type"] == "view_friends_list") {
-            for (int i; i < j["friends_name"].size(); ++i) {
-                std::cout << "用户名:" << j["friends_name"][i] << "  UID:" << j["firends_UID"] << std::endl;
+            for (int i = 0; i < j["friends_name"].size(); ++i) {
+                std::cout << "用户名:" << j["friends_name"][i] << "  UID:" << j["friends_UID"][i] << std::endl;
             }
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "confirmed_as_friend") {
+            if (j["result"] == "该用户是好友") {
+                confirmed_as_friend = 1;
+            } else {
+                confirmed_as_friend = 0;
+            }
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "check_online_status") {
+            std::cout << j["result"] << std::endl;
             
         }
     }

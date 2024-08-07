@@ -342,7 +342,7 @@ bool RedisManager::get_notification(const std::string& UID, const std::string& n
         }
     }
 
-    LogInfo("赋值结束");
+    // LogInfo("赋值结束");
 
     freeReplyObject(reply);
     return 1;
@@ -365,6 +365,7 @@ bool RedisManager::delete_notification(const std::string& UID, const std::string
 
     reply = (redisReply*) redisCommand(redisContext_, "LREM %s 0 %s", key.c_str(), notification.c_str());
 
+    LogInfo("删除通知结束");
     if (reply == nullptr) {
         std::cerr << "Error: " << redisContext_->errstr << std::endl;
         return 0;
@@ -388,12 +389,13 @@ bool RedisManager::add_friend(const std::string& UID, const std::string& request
         return 0;
     }
 
+    LogInfo("添加好友完成");
     freeReplyObject(reply);
     freeReplyObject(reply2);
     return 1;
 }
 
-bool RedisManager::get_friends(const std::string& UID, std::vector<std::string>& friends) {
+bool RedisManager::get_friends(const std::string& UID, std::vector<std::string>& friends_UID) {
     redisReply* reply = (redisReply*)redisCommand(redisContext_, "SMEMBERS friends:%s", UID.c_str());
     if (reply == NULL) {
         std::cerr << "Redis 命令执行失败！" << std::endl;
@@ -406,10 +408,10 @@ bool RedisManager::get_friends(const std::string& UID, std::vector<std::string>&
         return false;
 
     } else {
-        friends.resize(reply->elements);
+        friends_UID.resize(reply->elements);
 
         for (size_t i = 0; i < reply->elements; ++i) {
-            friends[i] = reply->element[i]->str;
+            friends_UID[i] = reply->element[i]->str;
         }
     }
 

@@ -2,6 +2,7 @@
 #include "../log/mars_logger.h"
 
 std::unordered_map<std::string, int> notice_map;
+bool confirmed_as_friend = 0;
 
 void home_UI(int connecting_sockfd, std::string UID) {
     int n;
@@ -124,7 +125,7 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
 }
 
 void friends_UI(int connecting_sockfd, std::string UID) {
-    std::string n;
+    std::string friend_UID;
     while (1) {
         system("clear");
         std::cout << "好友" << std::endl;
@@ -133,65 +134,94 @@ void friends_UI(int connecting_sockfd, std::string UID) {
         j["type"] = "view_friends_list";
         j["UID"] = UID;
 
-        send_json(connecting_sockfd, UID);
+        send_json(connecting_sockfd, j);
 
-        sleep(50000);
+        usleep(50000);
 
+        std::cout << "请输入想查看的好友的UID(输入0返回):";
+        std::cin >> friend_UID;
 
-        std::cout << "请输入想查看的好友的UID(输入R返回):";
-        std::cout << "请输入：";
-        std::cin >> n;
-        if (n == "r" || n == "R") {
+        if (friend_UID == "0") {
             return;
-
         } else {
-            
-            std::cout << "请正确输入选项！" << std::endl;
-            waiting_for_input();
+            friend_details(connecting_sockfd, UID, friend_UID);
         }
     }
 }
 
-void friend_details(int connecting_sockfd, std::string UID) {
-    char n;
-    while (1) {
-        system("clear");
-        std::cout << "好友详情" << std::endl;
-        std::cout << "1.好友用户名" << std::endl; 
-        std::cout << "2.好友id" << std::endl; 
-        std::cout << "3.好友在线状态" << std::endl;
-        std::cout << "4.私聊好友" << std::endl;
-        std::cout << "5.屏蔽好友" << std::endl;
-        std::cout << "6.删除好友" << std::endl;
-        std::cout << "7.返回" << std::endl;
-        std::cout << "请输入：";
-        std::cin >> n;
-        if (n == 1) {
-            
+void friend_details(int connecting_sockfd, std::string UID, std::string friend_UID) {
+    int n;
 
-        } else if (n == 2) {
-            
+    //确认是好友
+    json j;
+    j["type"] = "confirmed_as_friend";
+    j["UID"] = UID;
+    j["friend_UID"] = friend_UID;
+    
+    send_json(connecting_sockfd, j);
+    usleep(50000);
 
-        } else if (n == 3) {
-            
+    if(confirmed_as_friend != 0) {
+        confirmed_as_friend = 0;
+        while (1) {
+            system("clear");
+            std::cout << "好友详情" << std::endl;
+            std::cout << "1.好友用户名" << std::endl; 
+            std::cout << "2.好友UID" << std::endl; 
+            std::cout << "3.好友在线状态" << std::endl;
+            std::cout << "4.私聊好友" << std::endl;
+            std::cout << "5.屏蔽好友" << std::endl;
+            std::cout << "6.删除好友" << std::endl;
+            std::cout << "7.返回" << std::endl;
+            std::cout << "请输入：";
+            std::cin >> n;
+            if (n == 1) {
+                system("clear");
+                json j;
+                j["type"] = "get_username";
+                j["UID"] = friend_UID;
+                send_json(connecting_sockfd, j);
+                usleep(50000);
+                waiting_for_input();
 
-        } else if (n == 4) {
-            
+            } else if (n == 2) {
+                system("clear");
+                std::cout << friend_UID << std::endl;
+                waiting_for_input();
 
-        } else if (n == 5) {
-            
+            } else if (n == 3) {
+                system("clear");
+                json j;
+                j["type"] = "check_online_status";
+                j["UID"] = friend_UID;
+                send_json(connecting_sockfd, j);
+                usleep(50000);
+                waiting_for_input();
 
-        } else if (n == 6) {
-            
+            } else if (n == 4) {
+                
 
-        } else if (n == 7) {
-            return;
+            } else if (n == 5) {
+                
 
-        } else {
-            std::cout << "请正确输入选项！" << std::endl;
-            waiting_for_input();
+            } else if (n == 6) {
+                
+
+            } else if (n == 7) {
+                return;
+
+            } else {
+                std::cout << "请正确输入选项！" << std::endl;
+                waiting_for_input();
+            }
         }
+    } else {
+        system("clear");
+        std::cout << "该用户不是你的好友！" << std::endl;
+        waiting_for_input();
     }
+
+    
 }
 
 void groups_UI(int connecting_sockfd, std::string UID) {
@@ -247,7 +277,7 @@ void add_friend_UI(int connecting_sockfd, std::string UID) {
 
     j["UID"] = UID;
 
-    std::cout << "搜索(请输入用户UID)：";
+    std::cout << "搜索(请输入用户UID):";
     std::cin >> search_UID;
     j["search_UID"] = search_UID;
 
@@ -281,11 +311,11 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 
     j2["UID"] = UID;
 
-    std::cout << "请输入你同意申请的用户UID：";
+    std::cout << "请输入你同意申请的用户UID(输入0返回):";
     std::cin >> request_UID;
     j2["request_UID"] = request_UID;
 
-    send_json(connecting_sockfd, j);
+    send_json(connecting_sockfd, j2);
 
     usleep(50000);
     waiting_for_input();
