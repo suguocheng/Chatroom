@@ -23,8 +23,8 @@ public:
 
     
 private:
-    void do_read(int connected_sockfd);
-    void do_write(int connected_sockfd, const json& j);
+    void do_recv(int connected_sockfd);
+    void do_send(int connected_sockfd, const json& j);
     void heartbeat(int connected_sockfd);
 
     int listening_sockfd;

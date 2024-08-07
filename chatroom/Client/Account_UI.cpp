@@ -30,6 +30,7 @@ void main_menu_UI(int connecting_sockfd) {
                     usleep(50000);
                     waiting_for_input();
                     home_UI(connecting_sockfd, current_UID);
+                    continue;
                 }
                 break;
             case 2:
@@ -141,7 +142,7 @@ void change_usename_UI(int connecting_sockfd, std::string UID) {
     j["new_username"] = new_username;
 
     send_json(connecting_sockfd, j);
-    
+
     usleep(50000);
     waiting_for_input();
 }

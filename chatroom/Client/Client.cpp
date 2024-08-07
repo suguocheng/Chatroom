@@ -21,39 +21,18 @@ Client::Client(int port) : pool(5){
         throw std::runtime_error("Failed to connect to server: " + std::string(strerror(errno)));
     }
 
+    //将接收函数添加到线程池运行
     pool.add_task([this] {
-        do_read();
+        do_recv();
     });
     
+    //将心跳发送函数添加到线程池运行
     pool.add_task([this] {
         heartbeat();
     });
 
+    //主菜单，在里面负责发送数据
     main_menu_UI(connecting_sockfd);
-
-    // while (1) {
-    //     //等待事件并处理，将事件添加到事件数组中
-    //     int num_events = epoll_wait(epfd, events.data(), events.size(), -1);
-    //     if (num_events < 0) {
-    //         // std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
-    //         continue;
-    //     }
-
-
-    //     //遍历事件数组
-    //     for (int i = 0; i < num_events; ++i) {
-    //         if (events[i].events & EPOLLIN) {
-    //             pool.add_task([this] {
-    //                 do_read();
-    //             });
-    //         } 
-    //         else if (events[i].events & EPOLLOUT) {
-    //             // pool.add_task([this] {
-    //             //     do_write();
-    //             // });
-    //         }
-    //     }
-    // }
 }
 
 
@@ -62,23 +41,12 @@ Client::~Client() {
 }
 
 
-void Client::do_write() {
+void Client::do_send() {
     
-
-    //测试客户端与服务器连通性
-    // std::string message; //存储写入信息的字符串
-    // while(std::getline(std::cin, message)) {
-    //     //读取输入
-    //     const char* cmessage = message.c_str();
-    //     ssize_t bytes_written = write(connecting_sockfd, cmessage, strlen(cmessage));
-    //     if (bytes_written < 0) {
-    //         std::cerr << "Write failed: " << strerror(errno) << std::endl;
-    //     }
-    // }
 }
 
 
-void Client::do_read() {
+void Client::do_recv() {
     struct msghdr msg = {0};
     struct iovec iov[1];
     char buf[1024] = {0};
@@ -141,6 +109,9 @@ void Client::do_read() {
         } else if (j["type"] == "change_password") {
             std::cout << j["result"] << std::endl;
 
+        } else if (j["type"] == "quit_log") {
+            std::cout << j["result"] << std::endl;
+
         } else if (j["type"] == "log_out") {
             std::cout << j["result"] << std::endl;
 
@@ -150,8 +121,35 @@ void Client::do_read() {
         } else if (j["type"] == "get_security_question") {
             std::cout << j["security_question"] << std::endl;
 
-        } else if (j["type"] == "add_friend") {
+        } else if (j["type"] == "notice") {
+            if (j["friend_request_notification"] == 1) {
+                notice_map["friend_request_notification"] = 1;
+            } else {
+                notice_map["friend_request_notification"] = 0;
+            }
 
+            if (j["group_request_notification"] == 1) {
+                notice_map["group_request_notification"] = 1;
+            } else {
+                notice_map["group_request_notification"] = 0;
+            }
+
+            if (j["message_notification"] == 1) {
+                notice_map["message_notification"] = 1;
+            } else {
+                notice_map["message_notification"] = 0;
+            }
+
+            // LogInfo("friend_request_notification = {}", (notice_map["friend_request_notification"]));
+            
+        } else if (j["type"] == "add_friend") {
+            std::cout << j["result"] << std::endl;
+
+        } else if (j["type"] == "view_friend_requests") {
+            for (const auto& notification : j["friend_requests"]) {
+                std::cout << notification << std::endl;
+            }
+            
         } else if (j["type"] == "") {
             
         }

@@ -25,8 +25,12 @@ public:
     bool modify_security_question(const std::string& UID, const std::string& new_security_question, const std::string& new_security_answer);
     bool delete_user(const std::string& UID);
 
-    bool add_friend(const std::string& UID, const std::string& search_UID);
-    bool get_friend();
+    bool add_notification(const std::string& UID, const std::string& notification_type, const std::string& notification);
+    bool get_notification(const std::string& UID, const std::string& notification_type, std::vector<std::string>& notifications);
+    bool delete_notification(const std::string& UID, const std::string& notification_type, const std::string& notification);
+
+    bool add_friend(const std::string& UID, const std::string& request_UID);
+    bool get_friend(const std::string& UID);
     bool modify_friend();
     bool delete_friend();
 

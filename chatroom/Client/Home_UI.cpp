@@ -1,17 +1,30 @@
 #include "Home_UI.h"
+#include "../log/mars_logger.h"
 
-// int main() {
-//     Home_UI();
-//     return 0;
-// }
+std::unordered_map<std::string, int> notice_map;
 
 void home_UI(int connecting_sockfd, std::string UID) {
     int n;
     while (1) {
         system("clear");
         std::cout << "主页" << std::endl;
-        std::cout << "1.消息" << std::endl; //这里加个通知
-        std::cout << "2.通讯录" << std::endl; //这里加个通知
+        std::cout << "1.消息";
+        //这里加个通知
+        if(notice_map["message_notification"] == 1) {
+            std::cout << "(有新消息)" << std::endl;
+        } else {
+            std::cout << "\n";
+        }
+        std::cout << "2.通讯录";
+
+        // LogInfo("friend_request_notification = {}", (notice_map["friend_request_notification"]));
+
+        //这里加个通知
+        if(notice_map["friend_request_notification"] == 1 || notice_map["group_request_notification"] == 1) {
+            std::cout << "(有新申请)" << std::endl;
+        } else {
+            std::cout << "\n";
+        }
         std::cout << "3.个人中心" << std::endl;
         std::cout << "请输入：";
         std::cin >> n;
@@ -33,6 +46,10 @@ void home_UI(int connecting_sockfd, std::string UID) {
 
 void message_UI(int connecting_sockfd, std::string UID) {
     char n;
+
+    //取消消息通知
+    notice_map["message_notification"] = 0;
+
     while (1) {
         system("clear");
         std::cout << "消息" << std::endl;
@@ -56,9 +73,26 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
         std::cout << "通讯录" << std::endl;
         std::cout << "1.好友" << std::endl; 
         std::cout << "2.群聊" << std::endl; 
-        std::cout << "3.添加好友/群" << std::endl;//这里加个通知
-        std::cout << "4.创建群聊" << std::endl;
-        std::cout << "5.返回" << std::endl;
+        std::cout << "3.添加好友/群" << std::endl;
+        std::cout << "4.好友申请";
+
+        //这里加个通知
+        if(notice_map["friend_request_notification"] == 1) {
+            std::cout << "(有新申请)" << std::endl;
+        } else {
+            std::cout << "\n";
+        }
+
+        std::cout << "5.加群申请";
+
+        if(notice_map["group_request_notification"] == 1) {
+            std::cout << "(有新申请)" << std::endl;
+        } else {
+            std::cout << "\n";
+        }
+
+        std::cout << "6.创建群聊" << std::endl;
+        std::cout << "7.返回" << std::endl;
         std::cout << "请输入：";
         std::cin >> n;
         if (n == 1) {
@@ -71,9 +105,15 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
             add_friends_groups_UI(connecting_sockfd, UID);
 
         } else if (n == 4) {
-            //创建群聊
+            friends_request_UI(connecting_sockfd, UID);
 
         } else if (n == 5) {
+            groups_request_UI(connecting_sockfd, UID);
+
+        } else if (n == 6) {
+            //创建群聊
+
+        } else if (n == 7) {
             return;
 
         } else {
@@ -174,7 +214,7 @@ void add_friends_groups_UI(int connecting_sockfd, std::string UID) {
         std::cout << "请输入：";
         std::cin >> n;
         if (n == 1) {
-            
+            add_friend_UI(connecting_sockfd, UID);
         } else if (n == 2) {
             
         } else if (n == 3) {
@@ -202,12 +242,58 @@ void add_friend_UI(int connecting_sockfd, std::string UID) {
     j["search_UID"] = search_UID;
 
     send_json(connecting_sockfd, j);
-    
+
     usleep(50000);
     waiting_for_input();
 }
 
 void add_group_UI() {
+
+}
+
+void friends_request_UI(int connecting_sockfd, std::string UID) {
+    system("clear");
+    std::cout << "好友申请" << std::endl;
+
+    notice_map["friend_request_notification"] == 0;
+
+    json j;
+    j["type"] = "view_friend_requests";
+    j["UID"] = UID;
+
+    send_json(connecting_sockfd, j);
+
+    usleep(50000);
+
+    json j2;
+    j2["type"] = "agree_to_friend_request";
+    std::string request_UID;
+
+    j2["UID"] = UID;
+
+    std::cout << "请输入你同意申请的用户UID：";
+    std::cin >> request_UID;
+    j2["request_UID"] = request_UID;
+
+    send_json(connecting_sockfd, j);
+
+    usleep(50000);
+}
+
+void groups_request_UI(int connecting_sockfd, std::string UID) {
+    system("clear");
+    std::cout << "加群申请" << std::endl;
+
+    notice_map["friend_request_notification"] == 0;
+
+    json j;
+    j["type"] = "view_group_requests";
+    j["UID"] = UID;
+
+    send_json(connecting_sockfd, j);
+
+    usleep(50000);
+    waiting_for_input();
 
 }
 
@@ -230,6 +316,12 @@ bool user_UI(int connecting_sockfd, std::string UID) {
             change_password_UI(connecting_sockfd, UID);
 
         } else if (n == 3) {
+            json j;
+            j["type"] = "quit_log";
+            j["UID"] = UID;
+            send_json(connecting_sockfd, j);
+            usleep(50000);
+            waiting_for_input();
             return 1;
 
         } else if (n == 4) {

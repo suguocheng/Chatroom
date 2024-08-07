@@ -11,7 +11,7 @@ RedisManager::RedisManager() {
             std::cerr << "无法分配 Redis 上下文" << std::endl;
         }
     }
-    std::cout << "redis连接成功" << std::endl;
+    LogInfo("redis已启动!");
     // initializeCounter();
 }
 
@@ -281,8 +281,120 @@ bool RedisManager::delete_user(const std::string& UID) {
     return 1;
 }
 
-bool RedisManager::add_friend(const std::string& UID, const std::string& search_UID) {
-    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SADD friends:%s %s", UID, search_UID);
+bool RedisManager::add_notification(const std::string& UID, const std::string& notification_type, const std::string& notification) {
+    std::string key;
+
+    if (notification_type == "friend_request") {
+        key = "friend_request_notifications:" + UID;
+    } else if (notification_type == "group_request") {
+        key = "group_request_notifications:" + UID;
+    } else if (notification_type == "message") {
+        key = "message_notifications:" + UID;
+    } else {
+        std::cerr << "Unknown notification type" << std::endl;
+        return 0;
+    }
+
+    redisReply* reply = (redisReply*) redisCommand(redisContext_, "LPUSH %s %s", key.c_str(), notification.c_str());
+
+    if (reply == NULL) {
+        std::cerr << "Error: " << redisContext_->errstr << std::endl;
+        return 0;
+    }
+    freeReplyObject(reply);
+    
+    return 1;
+    
+}
+
+//有问题
+bool RedisManager::get_notification(const std::string& UID, const std::string& notification_type, std::vector<std::string>& notifications) {
+    std::string key;
+
+    if (notification_type == "friend_request") {
+        key = "friend_request_notifications:" + UID;
+    } else if (notification_type == "group_request") {
+        key = "group_request_notifications:" + UID;
+    } else if (notification_type == "message") {
+        key = "message_notifications:" + UID;
+    } else {
+        std::cerr << "Unknown notification type" << std::endl;
+        return 0;
+    }
+    // LogInfo("exe reply");
+    redisReply *reply = (redisReply*) redisCommand(redisContext_, "LRANGE %s 0 -1", key.c_str());
+    // LogInfo("reply end");
+    if (reply == NULL) {
+        std::cerr << "Error: " << redisContext_->errstr << std::endl;
+        return 0;
+    }
+
+    if (reply->type != REDIS_REPLY_ARRAY) {
+        std::cout << "用户不存在！" << std::endl;
+        return 0;
+
+    } else {
+        //不设置长度就报错了！
+        notifications.resize(reply->elements);
+
+        for (size_t i = 0; i < reply->elements; ++i) {
+            notifications[i] = reply->element[i]->str;
+        }
+    }
+
+    LogInfo("赋值结束");
+
+    freeReplyObject(reply);
+    return 1;
+}
+
+bool RedisManager::delete_notification(const std::string& UID, const std::string& notification_type, const std::string& notification) {
+    redisReply *reply;
+    std::string key;
+
+    if (notification_type == "friend_request") {
+        key = "friend_request_notifications:" + UID;
+    } else if (notification_type == "group_request") {
+        key = "group_request_notifications:" + UID;
+    } else if (notification_type == "message") {
+        key = "message_notifications:" + UID;
+    } else {
+        std::cerr << "Unknown notification type" << std::endl;
+        return 0;
+    }
+
+    reply = (redisReply*) redisCommand(redisContext_, "LREM %s 0 %s", key.c_str(), notification.c_str());
+
+    if (reply == nullptr) {
+        std::cerr << "Error: " << redisContext_->errstr << std::endl;
+        return 0;
+    }
+
+    freeReplyObject(reply);
+    return 1;
+}
+
+bool RedisManager::add_friend(const std::string& UID, const std::string& request_UID) {
+    //双向添加好友
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SADD friends:%s %s", UID.c_str(), request_UID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    redisReply* reply2 = (redisReply*)redisCommand(redisContext_, "SADD friends:%s %s", request_UID.c_str(), UID.c_str());
+    if (reply2 == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    freeReplyObject(reply);
+    freeReplyObject(reply2);
+    return 1;
+}
+
+bool RedisManager::get_friend(const std::string& UID) {
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SMEMBERS friends:%s", UID.c_str());
     if (reply == NULL) {
         std::cerr << "Redis 命令执行失败！" << std::endl;
         return 0;

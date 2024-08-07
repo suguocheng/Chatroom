@@ -11,7 +11,6 @@ using json = nlohmann::json;
 
 extern std::string current_UID;  // 声明全局变量
 
-
 void main_menu_UI(int connecting_sockfd);
 void log_in_UI(int connecting_sockfd);
 void sign_up_UI(int connecting_sockfd);

@@ -20,8 +20,8 @@ public:
     Client(int port);
     ~Client();
 
-    void do_write();
-    void do_read();
+    void do_send();
+    void do_recv();
     void heartbeat();
     
 private:
