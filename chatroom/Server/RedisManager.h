@@ -30,7 +30,7 @@ public:
     bool delete_notification(const std::string& UID, const std::string& notification_type, const std::string& notification);
 
     bool add_friend(const std::string& UID, const std::string& request_UID);
-    bool get_friend(const std::string& UID);
+    bool get_friends(const std::string& UID, std::vector<std::string>& friends);
     bool modify_friend();
     bool delete_friend();
 

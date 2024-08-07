@@ -591,15 +591,39 @@ void Server::do_recv(int connected_sockfd) {
                 });
 
             } else {
+                std::string request_UID = j["request"];
+                std::string notification = "用户" + request_UID + "想添加您为好友";
+
+                redisManager.delete_notification(j["UID"], "friend_request", notification);
+
                 j["result"] = "添加好友成功";
+
+                //将数据发送回原客户端
                 pool.add_task([this, connected_sockfd, j] {
                     do_send(connected_sockfd,j);
                 });
 
             }
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "view_friends_list") {
+            std::vector<std::string> friends_UID, friends_name;
             
+            //获取好友id
+            redisManager.get_friends(j["UID"], friends_UID);
+
+            //获取好友用户名
+            for(int i; i < friends_UID.size() ; ++i) {
+                friends_name[i] = redisManager.get_username(friends_UID[i]);
+            }
+
+            j["friends_UID"] = friends_UID;
+            j["friends_name"] = friends_name;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+
         } else if (j["type"] == "") {
             
         }

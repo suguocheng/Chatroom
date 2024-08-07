@@ -124,18 +124,28 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
 }
 
 void friends_UI(int connecting_sockfd, std::string UID) {
-    char n;
+    std::string n;
     while (1) {
         system("clear");
         std::cout << "好友" << std::endl;
-        //按首字母排序输出好友列表
-        std::cout << "输入R返回" << std::endl;
+        
+        json j;
+        j["type"] = "view_friends_list";
+        j["UID"] = UID;
+
+        send_json(connecting_sockfd, UID);
+
+        sleep(50000);
+
+
+        std::cout << "请输入想查看的好友的UID(输入R返回):";
         std::cout << "请输入：";
         std::cin >> n;
-        if (n == 'r' || n == 'R') {
+        if (n == "r" || n == "R") {
             return;
 
         } else {
+            
             std::cout << "请正确输入选项！" << std::endl;
             waiting_for_input();
         }
@@ -278,6 +288,7 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
     send_json(connecting_sockfd, j);
 
     usleep(50000);
+    waiting_for_input();
 }
 
 void groups_request_UI(int connecting_sockfd, std::string UID) {

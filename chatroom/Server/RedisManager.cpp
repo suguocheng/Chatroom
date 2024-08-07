@@ -393,11 +393,24 @@ bool RedisManager::add_friend(const std::string& UID, const std::string& request
     return 1;
 }
 
-bool RedisManager::get_friend(const std::string& UID) {
+bool RedisManager::get_friends(const std::string& UID, std::vector<std::string>& friends) {
     redisReply* reply = (redisReply*)redisCommand(redisContext_, "SMEMBERS friends:%s", UID.c_str());
     if (reply == NULL) {
         std::cerr << "Redis 命令执行失败！" << std::endl;
         return 0;
+    }
+
+    if (reply->type != REDIS_REPLY_ARRAY) {
+        std::cerr << "Redis 返回的不是数组类型" << std::endl;
+        freeReplyObject(reply);
+        return false;
+
+    } else {
+        friends.resize(reply->elements);
+
+        for (size_t i = 0; i < reply->elements; ++i) {
+            friends[i] = reply->element[i]->str;
+        }
     }
 
     freeReplyObject(reply);

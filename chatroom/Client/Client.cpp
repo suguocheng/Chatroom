@@ -150,6 +150,13 @@ void Client::do_recv() {
                 std::cout << notification << std::endl;
             }
             
+        } else if (j["type"] == "view_friends_list") {
+            for (int i; i < j["friends_name"].size(); ++i) {
+                std::cout << "用户名:" << j["friends_name"][i] << "  UID:" << j["firends_UID"] << std::endl;
+            }
+            
+        } else if (j["type"] == "") {
+            
         } else if (j["type"] == "") {
             
         }
