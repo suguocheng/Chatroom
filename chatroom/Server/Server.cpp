@@ -784,6 +784,52 @@ void Server::do_recv(int connected_sockfd) {
                     do_send(connected_sockfd,j);
                 });
             }
+        } else if (j["type"] == "get_chat_messages") {
+
+            std::vector<std::string> messages;
+            redisManager.get_chat_messages(j["UID"], j["friend_UID"], messages);
+
+            j["messages"] = messages;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+
+        } else if (j["type"] == "send_chat_messages") {
+            //已被屏蔽
+            if (redisManager.check_block_friend(j["friend_UID"], j["UID"]) != 0) {
+                j["result"] = "该好友已将您屏蔽";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                
+                //发送失败
+                if (redisManager.add_chat_message(j["UID"], j["friend_UID"], j["message"]) != 1) {
+                    j["result"] = "发送失败";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                } else {
+                    j["result"] = "发送成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                }
+            }
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {

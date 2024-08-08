@@ -2,8 +2,12 @@
 #include "../log/mars_logger.h"
 
 std::string current_UID = "";
+sem_t semaphore; // 定义信号量
 
 void main_menu_UI(int connecting_sockfd) {
+    //初始化信号量
+    sem_init(&semaphore, 0, 0);
+
     int n;
     while (1) {
         system("clear");
@@ -27,7 +31,6 @@ void main_menu_UI(int connecting_sockfd) {
                 log_in_UI(connecting_sockfd);
                 // LogInfo("2.current_UID = {}", current_UID);
                 if(current_UID != "") {
-                    usleep(50000);
                     waiting_for_input();
                     home_UI(connecting_sockfd, current_UID);
                     continue;
@@ -66,7 +69,7 @@ void log_in_UI(int connecting_sockfd) {
     j["password"] = password;
 
     send_json(connecting_sockfd, j);
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
 }
 
 void sign_up_UI(int connecting_sockfd) {
@@ -94,7 +97,7 @@ void sign_up_UI(int connecting_sockfd) {
     j["security_answer"] = security_answer;
 
     send_json(connecting_sockfd, j);
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
 }
 
 void retrieve_password(int connecting_sockfd) {
@@ -111,7 +114,7 @@ void retrieve_password(int connecting_sockfd) {
     j["username"] = username;
 
     send_json(connecting_sockfd, j);
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
 
     json j2;
     j2["type"] = "retrieve_password_confirm_answer";
@@ -124,7 +127,7 @@ void retrieve_password(int connecting_sockfd) {
     j2["security_answer"] = security_answer;
 
     send_json(connecting_sockfd, j2);
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
 }
 
 void change_usename_UI(int connecting_sockfd, std::string UID) {
@@ -143,7 +146,7 @@ void change_usename_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
 
@@ -167,7 +170,7 @@ void change_password_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
 
@@ -199,7 +202,7 @@ void change_security_question_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
 
@@ -230,7 +233,7 @@ void log_out_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
 

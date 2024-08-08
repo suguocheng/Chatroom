@@ -492,3 +492,46 @@ bool RedisManager::delete_block_friend(const std::string& UID, const std::string
     freeReplyObject(reply);
     return 1;
 }
+
+bool RedisManager::add_chat_message(const std::string& UID, const std::string& friend_UID, const std::string& message) {
+    std::string full_message = get_username(UID) + ":" + message;
+    redisReply *reply = (redisReply*) redisCommand(redisContext_, "RPUSH chat:%s:%s %s", UID.c_str(), friend_UID.c_str(), full_message.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    redisReply *reply2 = (redisReply*) redisCommand(redisContext_, "RPUSH chat:%s:%s %s", friend_UID.c_str(), UID.c_str(), full_message.c_str());
+    if (reply2 == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    freeReplyObject(reply);
+    freeReplyObject(reply2);
+    return 1;
+}
+
+bool RedisManager::get_chat_messages(const std::string& UID, const std::string& friend_UID, std::vector<std::string>& messages) {
+    redisReply *reply = (redisReply*) redisCommand(redisContext_, "LRANGE chat:%s:%s 0 -1", UID.c_str(), friend_UID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    if (reply->type != REDIS_REPLY_ARRAY) {
+        std::cerr << "Redis 返回的不是数组类型" << std::endl;
+        freeReplyObject(reply);
+        return 0;
+
+    } else {
+        messages.resize(reply->elements);
+
+        for (size_t i = 0; i < reply->elements; ++i) {
+            messages[i] = reply->element[i]->str;
+        }
+    }
+
+    freeReplyObject(reply);
+    return 1;
+}

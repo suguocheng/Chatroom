@@ -43,8 +43,8 @@ public:
     bool modify_group();
     bool delete_group();
 
-    bool add_chat_message(const std::string& userId, const std::string& friendId, const std::string& message);
-    bool get_chat_message();
+    bool add_chat_message(const std::string& UID, const std::string& friend_UID, const std::string& message);
+    bool get_chat_messages(const std::string& UID, const std::string& friend_UID, std::vector<std::string>& messages);
 
     bool add_group_chat_message(const std::string& groupId, const std::string& message);
     bool get_group_chat_message();

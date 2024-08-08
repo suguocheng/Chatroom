@@ -151,8 +151,7 @@ void friends_UI(int connecting_sockfd, std::string UID) {
         j["UID"] = UID;
 
         send_json(connecting_sockfd, j);
-
-        usleep(50000);
+        sem_wait(&semaphore); // 等待信号量
 
         std::cout << "请输入想查看的好友的UID(输入0返回):";
         std::cin >> friend_UID;
@@ -175,7 +174,7 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
     j["friend_UID"] = friend_UID;
     
     send_json(connecting_sockfd, j);
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
 
     if(confirmed_as_friend != 0) {
         confirmed_as_friend = 0;
@@ -207,7 +206,7 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
                 j2["UID"] = friend_UID;
 
                 send_json(connecting_sockfd, j2);
-                usleep(50000);
+                sem_wait(&semaphore); // 等待信号量
 
                 waiting_for_input();
 
@@ -223,12 +222,12 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
                 j3["UID"] = friend_UID;
 
                 send_json(connecting_sockfd, j3);
-                usleep(50000);
+                sem_wait(&semaphore); // 等待信号量
 
                 waiting_for_input();
 
             } else if (n == 4) {
-                
+                private_chat(connecting_sockfd, UID, friend_UID);
 
             } else if (n == 5) {
                 char choice;
@@ -236,13 +235,13 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
                     std::cout << "确认屏蔽该好友吗？(Y/N):";
                     std::cin >> choice;
                     if (choice == 'Y' || choice == 'y') {
-                        json j5;
-                        j5["type"] = "block_friend";
-                        j5["UID"] = UID;
-                        j5["friend_UID"] = friend_UID;
+                        json j4;
+                        j4["type"] = "block_friend";
+                        j4["UID"] = UID;
+                        j4["friend_UID"] = friend_UID;
 
-                        send_json(connecting_sockfd, j5);
-                        usleep(50000);
+                        send_json(connecting_sockfd, j4);
+                        sem_wait(&semaphore); // 等待信号量
 
                         waiting_for_input();
                         break;
@@ -260,13 +259,13 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
                     std::cout << "确认解除屏蔽吗？(Y/N):";
                     std::cin >> choice;
                     if (choice == 'Y' || choice == 'y') {
-                        json j6;
-                        j6["type"] = "unblock_friend";
-                        j6["UID"] = UID;
-                        j6["friend_UID"] = friend_UID;
+                        json j5;
+                        j5["type"] = "unblock_friend";
+                        j5["UID"] = UID;
+                        j5["friend_UID"] = friend_UID;
 
-                        send_json(connecting_sockfd, j6);
-                        usleep(50000);
+                        send_json(connecting_sockfd, j5);
+                        sem_wait(&semaphore); // 等待信号量
 
                         waiting_for_input();
                         break;
@@ -284,13 +283,13 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
                     std::cout << "确认删除该好友吗？(Y/N):";
                     std::cin >> choice;
                     if (choice == 'Y' || choice == 'y') {
-                        json j7;
-                        j7["type"] = "delete_friend";
-                        j7["UID"] = UID;
-                        j7["friend_UID"] = friend_UID;
+                        json j6;
+                        j6["type"] = "delete_friend";
+                        j6["UID"] = UID;
+                        j6["friend_UID"] = friend_UID;
 
-                        send_json(connecting_sockfd, j7);
-                        usleep(50000);
+                        send_json(connecting_sockfd, j6);
+                        sem_wait(&semaphore); // 等待信号量
 
                         waiting_for_input();
                         return;
@@ -314,9 +313,72 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
         system("clear");
         std::cout << "该用户不是你的好友！" << std::endl;
         waiting_for_input();
+    }  
+}
+
+void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID) {
+
+    //确认是好友
+    json j;
+    j["type"] = "confirmed_as_friend";
+    j["UID"] = UID;
+    j["friend_UID"] = friend_UID;
+    
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    if(confirmed_as_friend != 0) {
+        confirmed_as_friend = 0;
+        std::cin.ignore();
+        while (1) {
+            system("clear");
+            std::cout << "与";
+            json j2;
+            j2["type"] = "get_username";
+            j2["UID"] = friend_UID;
+
+            send_json(connecting_sockfd, j2);
+            sem_wait(&semaphore); // 等待信号量
+
+            std::cout << "私聊" << std::endl << std::endl;
+
+            json j3;
+            j3["type"] = "get_chat_messages";
+            j3["UID"] = UID;
+            j3["friend_UID"] = friend_UID;
+
+            send_json(connecting_sockfd, j3);
+            sem_wait(&semaphore); // 等待信号量
+
+            std::cout << std::endl;
+            std::cout << "请输入你要发送的消息(输入0退出):";
+
+            json j4;
+            std::string message;
+
+            j4["type"] = "send_chat_messages";
+            j4["UID"] = UID;
+            j4["friend_UID"] = friend_UID;
+
+            std::getline(std::cin, message);
+            j4["message"] = message;
+
+            if (message == "0") {
+                return;
+            }
+
+            send_json(connecting_sockfd, j4);
+            sem_wait(&semaphore); // 等待信号量
+
+            std::cout << "按回车键继续..." << std::endl;
+            std::cin.get(); // 等待用户输入
+        }
+    } else {
+        system("clear");
+        std::cout << "该用户不是你的好友！" << std::endl;
+        waiting_for_input();
     }
 
-    
 }
 
 void groups_UI(int connecting_sockfd, std::string UID) {
@@ -386,7 +448,7 @@ void add_friend_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
 
@@ -406,7 +468,7 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
 
     json j2;
     j2["type"] = "agree_to_friend_request";
@@ -425,7 +487,7 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j2);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
 
@@ -441,7 +503,7 @@ void groups_request_UI(int connecting_sockfd, std::string UID) {
 
     send_json(connecting_sockfd, j);
 
-    usleep(50000);
+    sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 
 }
@@ -477,7 +539,7 @@ bool user_UI(int connecting_sockfd, std::string UID) {
             j["type"] = "quit_log";
             j["UID"] = UID;
             send_json(connecting_sockfd, j);
-            usleep(50000);
+            sem_wait(&semaphore); // 等待信号量
             waiting_for_input();
             return 1;
 
@@ -560,7 +622,7 @@ void username_UI(int connecting_sockfd, std::string UID){
             j["type"] = "get_username";
             j["UID"] = UID;
             send_json(connecting_sockfd, j);
-            usleep(50000);
+            sem_wait(&semaphore); // 等待信号量
             waiting_for_input();
 
         } else if (n == 2) {
@@ -603,7 +665,7 @@ void security_question_UI(int connecting_sockfd, std::string UID) {
             j["type"] = "get_security_question";
             j["UID"] = UID;
             send_json(connecting_sockfd, j);
-            usleep(50000);
+            sem_wait(&semaphore); // 等待信号量
             waiting_for_input();
 
         } else if (n == 2) {

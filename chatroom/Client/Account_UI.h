@@ -6,8 +6,11 @@
 #include <string>
 #include <unistd.h> //文件操作
 #include <nlohmann/json.hpp> //JSON库
+#include <semaphore.h> //信号量库
 
 using json = nlohmann::json;
+
+extern sem_t semaphore;//声明信号量
 
 extern std::string current_UID;  // 声明全局变量
 

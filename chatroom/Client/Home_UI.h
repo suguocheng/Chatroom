@@ -13,6 +13,7 @@ void message_UI(int connecting_sockfd, std::string UID);
 void contacts_UI(int connecting_sockfd, std::string UID);
 void friends_UI(int connecting_sockfd, std::string UID);
 void friend_details(int connecting_sockfd, std::string UID, std::string friend_UID);
+void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID);
 void groups_UI(int connecting_sockfd, std::string UID);
 void add_friends_groups_UI(int connecting_sockfd, std::string UID);
 void add_friend_UI(int connecting_sockfd, std::string UID);

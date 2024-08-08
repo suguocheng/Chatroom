@@ -38,6 +38,8 @@ Client::Client(int port) : pool(5){
 
 Client::~Client() {
     close(connecting_sockfd);
+    sem_destroy(&semaphore); // 销毁信号量
+    pool.~ThreadPool();
 }
 
 
@@ -89,37 +91,49 @@ void Client::do_recv() {
             } else {
                 current_UID = "";
             }
+            
+            sem_post(&semaphore); // 释放信号量
             // LogInfo("current_UID = {}", current_UID);
 
         } else if (j["type"] == "sign_up") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "retrieve_password") {
             std::cout << "你的密保问题：" << j["security_question"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "retrieve_password_confirm_answer") {
             std::cout << "你的密码：" << j["password"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "change_usename") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "change_security_question") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "change_password") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "quit_log") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "log_out") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "get_username") {
             std::cout << j["username"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "get_security_question") {
             std::cout << j["security_question"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "notice") {
             if (j["friend_request_notification"] == 1) {
@@ -139,24 +153,29 @@ void Client::do_recv() {
             } else {
                 notice_map["message_notification"] = 0;
             }
+            sem_post(&semaphore); // 释放信号量
 
             // LogInfo("friend_request_notification = {}", (notice_map["friend_request_notification"]));
             
         } else if (j["type"] == "add_friend") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "view_friend_requests") {
             for (const auto& notification : j["friend_requests"]) {
                 std::cout << notification << std::endl;
             }
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "agree_to_friend_request") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "view_friends_list") {
             for (int i = 0; i < j["friends_name"].size(); ++i) {
                 std::cout << "用户名:" << j["friends_name"][i] << "  UID:" << j["friends_UID"][i] << std::endl;
             }
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "confirmed_as_friend") {
             if (j["result"] == "该用户是好友") {
@@ -164,22 +183,33 @@ void Client::do_recv() {
             } else {
                 confirmed_as_friend = 0;
             }
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "check_online_status") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "delete_friend") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "block_friend") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "unblock_friend") {
             std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
-            
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "get_chat_messages") {
+            for (int i = 0; i < j["messages"].size(); ++i) {
+                std::cout << j["messages"][i] << std::endl;
+            }
+            sem_post(&semaphore); // 释放信号量
+
+        } else if (j["type"] == "send_chat_messages") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             
