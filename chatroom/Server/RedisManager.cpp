@@ -365,7 +365,7 @@ bool RedisManager::delete_notification(const std::string& UID, const std::string
 
     reply = (redisReply*) redisCommand(redisContext_, "LREM %s 0 %s", key.c_str(), notification.c_str());
 
-    LogInfo("删除通知结束");
+    // LogInfo("删除通知结束");
     if (reply == nullptr) {
         std::cerr << "Error: " << redisContext_->errstr << std::endl;
         return 0;
@@ -389,7 +389,7 @@ bool RedisManager::add_friend(const std::string& UID, const std::string& request
         return 0;
     }
 
-    LogInfo("添加好友完成");
+    // LogInfo("添加好友完成");
     freeReplyObject(reply);
     freeReplyObject(reply2);
     return 1;
@@ -405,7 +405,7 @@ bool RedisManager::get_friends(const std::string& UID, std::vector<std::string>&
     if (reply->type != REDIS_REPLY_ARRAY) {
         std::cerr << "Redis 返回的不是数组类型" << std::endl;
         freeReplyObject(reply);
-        return false;
+        return 0;
 
     } else {
         friends_UID.resize(reply->elements);
@@ -414,6 +414,80 @@ bool RedisManager::get_friends(const std::string& UID, std::vector<std::string>&
             friends_UID[i] = reply->element[i]->str;
         }
     }
+
+    freeReplyObject(reply);
+    return 1;
+}
+
+bool RedisManager::delete_friend(const std::string& UID, const std::string& friend_UID) {
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SREM friends:%s %s", UID.c_str(), friend_UID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    redisReply* reply2 = (redisReply*)redisCommand(redisContext_, "SREM friends:%s %s", friend_UID.c_str(), UID.c_str());
+    if (reply2 == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    freeReplyObject(reply);
+    freeReplyObject(reply2);
+    return 1;
+}
+
+bool RedisManager::add_block_friend(const std::string& UID, const std::string& friend_UID) {
+
+    // LogInfo("准备屏蔽");
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SADD block_friends:%s %s", UID.c_str(), friend_UID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+    // LogInfo("屏蔽完成");
+
+    freeReplyObject(reply);
+    return 1;
+}
+
+bool RedisManager::check_block_friend(const std::string& UID, const std::string& friend_UID) {
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SMEMBERS block_friends:%s", UID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    // LogInfo("reply->type = {}", reply->type);
+    if (reply->type != REDIS_REPLY_ARRAY) {
+        std::cerr << "Redis 返回的不是数组类型" << std::endl;
+        freeReplyObject(reply);
+        return 0;
+
+    } else {
+        // LogInfo("准备进入循环");
+        // LogInfo("reply->elements = {}", reply->elements);
+        for (size_t i = 0; i < reply->elements; ++i) {
+            // LogInfo("friend_UID = {}", friend_UID);
+            // LogInfo("reply->element[i]->str = {}", reply->element[i]->str);
+            if (friend_UID == reply->element[i]->str) {
+                return 1;
+            }
+        }
+    }
+
+    freeReplyObject(reply);
+    return 0;
+}
+
+bool RedisManager::delete_block_friend(const std::string& UID, const std::string& friend_UID) {
+    // LogInfo("准备解除屏蔽");
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SREM block_friends:%s %s", UID.c_str(), friend_UID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+    // LogInfo("解除屏蔽完成");
 
     freeReplyObject(reply);
     return 1;

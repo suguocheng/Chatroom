@@ -28,7 +28,15 @@ void home_UI(int connecting_sockfd, std::string UID) {
         }
         std::cout << "3.个人中心" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
         if (n == 1) {
             message_UI(connecting_sockfd, UID);
         } else if (n == 2) {
@@ -95,7 +103,15 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
         std::cout << "6.创建群聊" << std::endl;
         std::cout << "7.返回" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
         if (n == 1) {
             friends_UI(connecting_sockfd, UID);
 
@@ -171,17 +187,28 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
             std::cout << "3.好友在线状态" << std::endl;
             std::cout << "4.私聊好友" << std::endl;
             std::cout << "5.屏蔽好友" << std::endl;
-            std::cout << "6.删除好友" << std::endl;
-            std::cout << "7.返回" << std::endl;
+            std::cout << "6.解除屏蔽" << std::endl;
+            std::cout << "7.删除好友" << std::endl;
+            std::cout << "8.返回" << std::endl;
             std::cout << "请输入：";
-            std::cin >> n;
+
+            // 读取用户输入
+            if (!(std::cin >> n)) {
+                std::cin.clear(); // 清除错误标志
+                std::cout << "无效的输入，请输入一个数字！" << std::endl;
+                waiting_for_input();
+                continue; // 重新显示菜单
+            }
+
             if (n == 1) {
                 system("clear");
-                json j;
-                j["type"] = "get_username";
-                j["UID"] = friend_UID;
-                send_json(connecting_sockfd, j);
+                json j2;
+                j2["type"] = "get_username";
+                j2["UID"] = friend_UID;
+
+                send_json(connecting_sockfd, j2);
                 usleep(50000);
+
                 waiting_for_input();
 
             } else if (n == 2) {
@@ -191,23 +218,91 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
 
             } else if (n == 3) {
                 system("clear");
-                json j;
-                j["type"] = "check_online_status";
-                j["UID"] = friend_UID;
-                send_json(connecting_sockfd, j);
+                json j3;
+                j3["type"] = "check_online_status";
+                j3["UID"] = friend_UID;
+
+                send_json(connecting_sockfd, j3);
                 usleep(50000);
+
                 waiting_for_input();
 
             } else if (n == 4) {
                 
 
             } else if (n == 5) {
-                
+                char choice;
+                while (1) {
+                    std::cout << "确认屏蔽该好友吗？(Y/N):";
+                    std::cin >> choice;
+                    if (choice == 'Y' || choice == 'y') {
+                        json j5;
+                        j5["type"] = "block_friend";
+                        j5["UID"] = UID;
+                        j5["friend_UID"] = friend_UID;
+
+                        send_json(connecting_sockfd, j5);
+                        usleep(50000);
+
+                        waiting_for_input();
+                        break;
+                    } else if (choice == 'N' || choice == 'n') {
+                        break;
+                    } else {
+                        std::cout << "请正确输入选项！" << std::endl;
+                        waiting_for_input();
+                    }
+                }
 
             } else if (n == 6) {
-                
+                char choice;
+                while (1) {
+                    std::cout << "确认解除屏蔽吗？(Y/N):";
+                    std::cin >> choice;
+                    if (choice == 'Y' || choice == 'y') {
+                        json j6;
+                        j6["type"] = "unblock_friend";
+                        j6["UID"] = UID;
+                        j6["friend_UID"] = friend_UID;
+
+                        send_json(connecting_sockfd, j6);
+                        usleep(50000);
+
+                        waiting_for_input();
+                        break;
+                    } else if (choice == 'N' || choice == 'n') {
+                        break;
+                    } else {
+                        std::cout << "请正确输入选项！" << std::endl;
+                        waiting_for_input();
+                    }
+                }
 
             } else if (n == 7) {
+                char choice;
+                while (1) {
+                    std::cout << "确认删除该好友吗？(Y/N):";
+                    std::cin >> choice;
+                    if (choice == 'Y' || choice == 'y') {
+                        json j7;
+                        j7["type"] = "delete_friend";
+                        j7["UID"] = UID;
+                        j7["friend_UID"] = friend_UID;
+
+                        send_json(connecting_sockfd, j7);
+                        usleep(50000);
+
+                        waiting_for_input();
+                        return;
+                    } else if (choice == 'N' || choice == 'n') {
+                        break;
+                    } else {
+                        std::cout << "请正确输入选项！" << std::endl;
+                        waiting_for_input();
+                    }
+                }
+
+            } else if (n == 8) {
                 return;
 
             } else {
@@ -252,7 +347,15 @@ void add_friends_groups_UI(int connecting_sockfd, std::string UID) {
         std::cout << "2.添加群聊" << std::endl;
         std::cout << "3.返回" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
         if (n == 1) {
             add_friend_UI(connecting_sockfd, UID);
         } else if (n == 2) {
@@ -313,6 +416,11 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 
     std::cout << "请输入你同意申请的用户UID(输入0返回):";
     std::cin >> request_UID;
+
+    if (request_UID == "0") {
+        return;
+    }
+
     j2["request_UID"] = request_UID;
 
     send_json(connecting_sockfd, j2);
@@ -349,7 +457,15 @@ bool user_UI(int connecting_sockfd, std::string UID) {
         std::cout << "4.注销帐号" << std::endl;
         std::cout << "5.返回" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
         if (n == 1) {
             information_UI(connecting_sockfd, UID);
 
@@ -389,7 +505,15 @@ void information_UI(int connecting_sockfd, std::string UID) {
         std::cout << "3.密保问题" << std::endl;
         std::cout << "4.返回" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
         if (n == 1) {
             username_UI(connecting_sockfd, UID);
 
@@ -421,7 +545,15 @@ void username_UI(int connecting_sockfd, std::string UID){
         std::cout << "2.更改用户名" << std::endl;
         std::cout << "3.返回" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
         if (n == 1) {
             system("clear");
             json j;
@@ -456,7 +588,15 @@ void security_question_UI(int connecting_sockfd, std::string UID) {
         std::cout << "2.更改密保问题" << std::endl;
         std::cout << "3.返回" << std::endl;
         std::cout << "请输入：";
-        std::cin >> n;
+
+        // 读取用户输入
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+        
         if (n == 1) {
             system("clear");
             json j;

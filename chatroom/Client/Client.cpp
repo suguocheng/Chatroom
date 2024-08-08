@@ -164,9 +164,26 @@ void Client::do_recv() {
             } else {
                 confirmed_as_friend = 0;
             }
-            
+
         } else if (j["type"] == "check_online_status") {
             std::cout << j["result"] << std::endl;
+            
+        } else if (j["type"] == "delete_friend") {
+            std::cout << j["result"] << std::endl;
+
+        } else if (j["type"] == "block_friend") {
+            std::cout << j["result"] << std::endl;
+
+        } else if (j["type"] == "unblock_friend") {
+            std::cout << j["result"] << std::endl;
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
             
         }
     }

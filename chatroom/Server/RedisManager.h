@@ -32,7 +32,11 @@ public:
     bool add_friend(const std::string& UID, const std::string& request_UID);
     bool get_friends(const std::string& UID, std::vector<std::string>& friends_UID);
     bool modify_friend();
-    bool delete_friend();
+    bool delete_friend(const std::string& UID, const std::string& friend_UID);
+
+    bool add_block_friend(const std::string& UID, const std::string& friend_UID);
+    bool check_block_friend(const std::string& UID, const std::string& friend_UID);
+    bool delete_block_friend(const std::string& UID, const std::string& friend_UID);
 
     bool add_group(const std::string& userId, const std::string& groupId);
     bool get_group();

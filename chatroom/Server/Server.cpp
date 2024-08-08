@@ -170,12 +170,9 @@ void Server::do_recv(int connected_sockfd) {
 
         //接收登录类型数据
         if (j["type"] == "log_in") {
-            
-            //与redis比较密码
-            if (j["password"] != redisManager.get_password(j["username"])) {
-                
-                //登录失败
-                j["result"] = "密码错误";
+            if (redisManager.get_UID(j["username"]) == "") {
+                //用户不存在
+                j["result"] = "用户不存在";
 
                 //将数据发送回原客户端
                 pool.add_task([this, connected_sockfd, j] {
@@ -183,42 +180,56 @@ void Server::do_recv(int connected_sockfd) {
                 });
 
             } else {
-                //查询用户是否在线
-                auto it = map.find(redisManager.get_UID(j["username"]));
 
-                //在线
-                if (it != map.end()) {
-                    j["result"] = "用户已经登录";
+                //与redis比较密码
+                if (j["password"] != redisManager.get_password(j["username"])) {
                     
+                    //密码错误
+                    j["result"] = "密码错误";
+
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
                         do_send(connected_sockfd,j);
                     });
 
-                //不在线
                 } else {
-                    //登录成功
-                    j["result"] = "登录成功";
-                    j["UID"] = redisManager.get_UID(j["username"]);
+                    //查询用户是否在线
+                    auto it = map.find(redisManager.get_UID(j["username"]));
 
-                    //将uid与在线套接字绑定，以确定在线状态
-                    map[j["UID"]] = connected_sockfd;
-                    
-                    //只要登录就发送粗略的消息通知
-                    // json j2;
-                    // std::vector<std::string> notifications;
-                    // j2["type"] = "notice";
-                    // j2["friend_request_notification"] = redisManager.get_notification(j["UID"], "friend_request", notifications);
-                    // j2["group_request_notification"] = redisManager.get_notification(j["UID"], "group_request", notifications);
-                    // j2["message_notification"] = redisManager.get_notification(j["UID"], "message", notifications);
-                    
-                    //将数据发送回原客户端
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_send(connected_sockfd,j);
-                    });
+                    //在线
+                    if (it != map.end()) {
+                        j["result"] = "用户已经登录";
+                        
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+
+                    //不在线
+                    } else {
+                        //登录成功
+                        j["result"] = "登录成功";
+                        j["UID"] = redisManager.get_UID(j["username"]);
+
+                        //将uid与在线套接字绑定，以确定在线状态
+                        map[j["UID"]] = connected_sockfd;
+                        
+                        //只要登录就发送粗略的消息通知
+                        // json j2;
+                        // std::vector<std::string> notifications;
+                        // j2["type"] = "notice";
+                        // j2["friend_request_notification"] = redisManager.get_notification(j["UID"], "friend_request", notifications);
+                        // j2["group_request_notification"] = redisManager.get_notification(j["UID"], "group_request", notifications);
+                        // j2["message_notification"] = redisManager.get_notification(j["UID"], "message", notifications);
+                        
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+                    }
                 }
             }
-
+            
         //接收注册类型数据
         } else if (j["type"] == "sign_up") {
 
@@ -533,51 +544,62 @@ void Server::do_recv(int connected_sockfd) {
                 });
 
             } else {
-                
-                //存储好友申请通知到redis
-                std::string UID = j["UID"].get<std::string>();
-                std::string notification = "用户" + UID + "想添加您为好友";
 
-                //存储好友申请通知失败
-                if (redisManager.add_notification(j["search_UID"], "friend_request", notification) == 0) {
+                if (j["UID"] == j["search_UID"]) {
 
                     //申请失败
-                    j["result"] = "申请失败";
+                    j["result"] = "不能加自己为好友";
 
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
                         do_send(connected_sockfd,j);
                     });
-
                 } else {
+                    //存储好友申请通知到redis
+                    std::string UID = j["UID"].get<std::string>();
+                    std::string notification = "用户" + UID + "想添加您为好友";
 
-                    //申请成功
-                    j["result"] = "申请成功";
+                    //存储好友申请通知失败
+                    if (redisManager.add_notification(j["search_UID"], "friend_request", notification) == 0) {
 
-                    //查询用户是否在线
-                    auto it = map.find(j["search_UID"]);
+                        //申请失败
+                        j["result"] = "申请失败";
 
-                    //在线
-                    if (it != map.end()) {
-
-                        json j2;
-                        std::vector<std::string> notifications;
-                        j2["type"] = "notice";
-                        j2["friend_request_notification"] = 1;
-
-                        int connected_sockfd2 = it->second;
-
-                        pool.add_task([this, connected_sockfd2, j2] {
-                            do_send(connected_sockfd2, j2);
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
                         });
-                    
+
+                    } else {
+
+                        //申请成功
+                        j["result"] = "申请成功";
+
+                        //查询用户是否在线
+                        auto it = map.find(j["search_UID"]);
+
+                        //在线
+                        if (it != map.end()) {
+
+                            json j2;
+                            std::vector<std::string> notifications;
+                            j2["type"] = "notice";
+                            j2["friend_request_notification"] = 1;
+
+                            int connected_sockfd2 = it->second;
+
+                            pool.add_task([this, connected_sockfd2, j2] {
+                                do_send(connected_sockfd2, j2);
+                            });
+                        
+                        }
+
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+
                     }
-
-                    //将数据发送回原客户端
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_send(connected_sockfd,j);
-                    });
-
                 }
             }
 
@@ -599,7 +621,7 @@ void Server::do_recv(int connected_sockfd) {
                 continue;
             }
 
-            if (redisManager.get_username(j["search_UID"]) == "") {
+            if (redisManager.get_username(j["request_UID"]) == "") {
 
                 //用户不存在
                 j["result"] = "请输入正确用户";
@@ -617,7 +639,7 @@ void Server::do_recv(int connected_sockfd) {
                     });
 
                 } else {
-                    std::string request_UID = j["request_UID"];
+                    std::string request_UID = j["request_UID"].get<std::string>();
                     std::string notification = "用户" + request_UID + "想添加您为好友";
 
                     LogInfo("准备删除通知");
@@ -687,12 +709,81 @@ void Server::do_recv(int connected_sockfd) {
                 do_send(connected_sockfd,j);
             });
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "delete_friend") {
+            if (redisManager.delete_friend(j["UID"], j["friend_UID"]) == 0) {
+                j["result"] = "删除失败";
+            } else {
+                j["result"] = "删除成功";
+            }
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+
+        } else if (j["type"] == "block_friend") {
+
+            //没被屏蔽
+            if (redisManager.check_block_friend(j["UID"], j["friend_UID"]) == 0) {
+
+                //屏蔽失败
+                if (redisManager.add_block_friend(j["UID"], j["friend_UID"]) == 0) {
+                    j["result"] = "屏蔽失败";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                } else {
+                    j["result"] = "屏蔽成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                }
+
+            //已被屏蔽
+            } else {
+                j["result"] = "该好友已被屏蔽";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+            }
+
+        } else if (j["type"] == "unblock_friend") {
+
+            //已被屏蔽
+            if (redisManager.check_block_friend(j["UID"], j["friend_UID"]) != 0) {
+
+                //解除屏蔽失败
+                if (redisManager.delete_block_friend(j["UID"], j["friend_UID"]) == 0) {
+                    j["result"] = "解除屏蔽失败";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                } else {
+                    j["result"] = "解除屏蔽成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                }
             
-        } else if (j["type"] == "") {
-            
-        } else if (j["type"] == "") {
-            
+            //没被屏蔽
+            } else {
+                j["result"] = "该好友未被屏蔽";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+            }
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
