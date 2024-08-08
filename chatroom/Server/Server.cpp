@@ -582,7 +582,6 @@ void Server::do_recv(int connected_sockfd) {
                         if (it != map.end()) {
 
                             json j2;
-                            std::vector<std::string> notifications;
                             j2["type"] = "notice";
                             j2["friend_request_notification"] = 1;
 
@@ -642,7 +641,7 @@ void Server::do_recv(int connected_sockfd) {
                     std::string request_UID = j["request_UID"].get<std::string>();
                     std::string notification = "用户" + request_UID + "想添加您为好友";
 
-                    LogInfo("准备删除通知");
+                    // LogInfo("准备删除通知");
                     redisManager.delete_notification(j["UID"], "friend_request", notification);
 
                     j["result"] = "添加好友成功";
@@ -817,16 +816,71 @@ void Server::do_recv(int connected_sockfd) {
                         do_send(connected_sockfd,j);
                     });
                 } else {
-                    j["result"] = "发送成功";
 
-                    //将数据发送回原客户端
-                    pool.add_task([this, connected_sockfd, j] {
-                        do_send(connected_sockfd,j);
-                    });
+                    //存储消息通知到redis
+                    std::string UID = j["UID"].get<std::string>();
+                    std::string notification = "好友" + redisManager.get_username(UID) + "(UID为:" + UID + ")" + "给你发来了新消息";
 
+                    std::vector<std::string> notifications;
+                    redisManager.get_notification(j["friend_UID"], "message", notifications);
+
+                    //如果重复就删除以前的消息通知保留最新的
+                    for (const auto& n : notifications) {
+                        if (notification == n) {
+                            redisManager.delete_notification(j["friend_UID"], "message", n);
+                        }
+                    }
+
+                    //存储消息通知失败
+                    if (redisManager.add_notification(j["friend_UID"], "message", notification) == 0) {
+
+                        //存储失败
+                        j["result"] = "发送失败";
+
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+
+                    } else {
+
+                        //存储成功
+                        j["result"] = "发送成功";
+
+                        //查询用户是否在线
+                        auto it = map.find(j["friend_UID"]);
+
+                        //在线
+                        if (it != map.end()) {
+
+                            json j2;
+                            j2["type"] = "notice";
+                            j2["message_notification"] = 1;
+
+                            int connected_sockfd2 = it->second;
+
+                            pool.add_task([this, connected_sockfd2, j2] {
+                                do_send(connected_sockfd2, j2);
+                            });
+                        
+                        }
+
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+                    }
                 }
             }
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "view_messages") {
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "message", notifications);
+            j["messages"] = notifications;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
             
         } else if (j["type"] == "") {
             

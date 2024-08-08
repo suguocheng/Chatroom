@@ -61,17 +61,34 @@ void message_UI(int connecting_sockfd, std::string UID) {
 
     while (1) {
         system("clear");
-        std::cout << "消息" << std::endl;
-        //按回复时间输出会话列表
-        std::cout << "输入R返回" << std::endl;
-        std::cout << "请输入：";
-        std::cin >> n;
-        if (n == 'r' || n == 'R') {
+        std::cout << "消息" << std::endl << std::endl;
+
+        json j;
+        j["type"] = "view_messages";
+        j["UID"] = UID;
+
+        //这里有问题，有时候不等待了(解决了)
+        // int sem_value;
+        // sem_getvalue(&semaphore, &sem_value);
+
+        send_json(connecting_sockfd, j);
+        // LogInfo("wait前semaphore = {}", sem_value);
+        sem_wait(&semaphore); // 等待信号量
+        // sem_getvalue(&semaphore, &sem_value);
+        // LogInfo("wait后semaphore = {}", sem_value);
+
+        std::string friend_UID;
+
+        std::cout << std::endl;
+        std::cout << "请输入你想要处理消息的好友的UID(输入0返回):";
+        std::cin >> friend_UID;
+
+        if (friend_UID == "0") {
             return;
-        } else {
-            std::cout << "请正确输入选项！" << std::endl;
-            waiting_for_input();
         }
+        
+        private_chat(connecting_sockfd, UID, friend_UID);
+        
     }
 }
 
@@ -144,7 +161,7 @@ void friends_UI(int connecting_sockfd, std::string UID) {
     std::string friend_UID;
     while (1) {
         system("clear");
-        std::cout << "好友" << std::endl;
+        std::cout << "好友" << std::endl << std::endl;
         
         json j;
         j["type"] = "view_friends_list";
@@ -152,6 +169,8 @@ void friends_UI(int connecting_sockfd, std::string UID) {
 
         send_json(connecting_sockfd, j);
         sem_wait(&semaphore); // 等待信号量
+
+        std::cout << std::endl;
 
         std::cout << "请输入想查看的好友的UID(输入0返回):";
         std::cin >> friend_UID;
@@ -457,38 +476,39 @@ void add_group_UI() {
 }
 
 void friends_request_UI(int connecting_sockfd, std::string UID) {
-    system("clear");
-    std::cout << "好友申请" << std::endl;
-
     notice_map["friend_request_notification"] == 0;
+    
+    while (1) {
+        system("clear");
+        std::cout << "好友申请" << std::endl;
 
-    json j;
-    j["type"] = "view_friend_requests";
-    j["UID"] = UID;
+        json j;
+        j["type"] = "view_friend_requests";
+        j["UID"] = UID;
 
-    send_json(connecting_sockfd, j);
+        send_json(connecting_sockfd, j);
+        sem_wait(&semaphore); // 等待信号量
 
-    sem_wait(&semaphore); // 等待信号量
+        json j2;
+        j2["type"] = "agree_to_friend_request";
+        std::string request_UID;
 
-    json j2;
-    j2["type"] = "agree_to_friend_request";
-    std::string request_UID;
+        j2["UID"] = UID;
 
-    j2["UID"] = UID;
+        std::cout << "请输入你同意申请的用户UID(输入0返回):";
+        std::cin >> request_UID;
 
-    std::cout << "请输入你同意申请的用户UID(输入0返回):";
-    std::cin >> request_UID;
+        if (request_UID == "0") {
+            return;
+        }
 
-    if (request_UID == "0") {
-        return;
+        j2["request_UID"] = request_UID;
+
+        send_json(connecting_sockfd, j2);
+        sem_wait(&semaphore); // 等待信号量
+
+        waiting_for_input();
     }
-
-    j2["request_UID"] = request_UID;
-
-    send_json(connecting_sockfd, j2);
-
-    sem_wait(&semaphore); // 等待信号量
-    waiting_for_input();
 }
 
 void groups_request_UI(int connecting_sockfd, std::string UID) {
@@ -502,8 +522,8 @@ void groups_request_UI(int connecting_sockfd, std::string UID) {
     j["UID"] = UID;
 
     send_json(connecting_sockfd, j);
-
     sem_wait(&semaphore); // 等待信号量
+
     waiting_for_input();
 
 }
@@ -538,8 +558,10 @@ bool user_UI(int connecting_sockfd, std::string UID) {
             json j;
             j["type"] = "quit_log";
             j["UID"] = UID;
+
             send_json(connecting_sockfd, j);
             sem_wait(&semaphore); // 等待信号量
+
             waiting_for_input();
             return 1;
 
@@ -621,8 +643,10 @@ void username_UI(int connecting_sockfd, std::string UID){
             json j;
             j["type"] = "get_username";
             j["UID"] = UID;
+
             send_json(connecting_sockfd, j);
             sem_wait(&semaphore); // 等待信号量
+
             waiting_for_input();
 
         } else if (n == 2) {
@@ -664,8 +688,10 @@ void security_question_UI(int connecting_sockfd, std::string UID) {
             json j;
             j["type"] = "get_security_question";
             j["UID"] = UID;
+
             send_json(connecting_sockfd, j);
             sem_wait(&semaphore); // 等待信号量
+
             waiting_for_input();
 
         } else if (n == 2) {

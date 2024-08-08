@@ -307,7 +307,7 @@ bool RedisManager::add_notification(const std::string& UID, const std::string& n
     
 }
 
-//有问题
+
 bool RedisManager::get_notification(const std::string& UID, const std::string& notification_type, std::vector<std::string>& notifications) {
     std::string key;
 

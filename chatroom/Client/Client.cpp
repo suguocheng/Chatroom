@@ -135,6 +135,7 @@ void Client::do_recv() {
             std::cout << j["security_question"] << std::endl;
             sem_post(&semaphore); // 释放信号量
 
+        //不需要释放信号量，这个没有输出不会造成输出冲突，也没有信号量在等待它
         } else if (j["type"] == "notice") {
             if (j["friend_request_notification"] == 1) {
                 notice_map["friend_request_notification"] = 1;
@@ -153,7 +154,7 @@ void Client::do_recv() {
             } else {
                 notice_map["message_notification"] = 0;
             }
-            sem_post(&semaphore); // 释放信号量
+            // sem_post(&semaphore); // 释放信号量
 
             // LogInfo("friend_request_notification = {}", (notice_map["friend_request_notification"]));
             
@@ -176,7 +177,7 @@ void Client::do_recv() {
                 std::cout << "用户名:" << j["friends_name"][i] << "  UID:" << j["friends_UID"][i] << std::endl;
             }
             sem_post(&semaphore); // 释放信号量
-            
+        
         } else if (j["type"] == "confirmed_as_friend") {
             if (j["result"] == "该用户是好友") {
                 confirmed_as_friend = 1;
@@ -202,14 +203,31 @@ void Client::do_recv() {
             sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "get_chat_messages") {
-            for (int i = 0; i < j["messages"].size(); ++i) {
-                std::cout << j["messages"][i] << std::endl;
+            for (const auto& message : j["messages"]) {
+                std::cout << message << std::endl;
             }
             sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "send_chat_messages") {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
+            
+        } else if (j["type"] == "view_messages") {
+            for (const auto& message : j["messages"]) {
+                std::cout << message << std::endl;
+            }
+            // int sem_value;
+            // sem_getvalue(&semaphore, &sem_value);
+            // LogInfo("post前semaphore = {}", sem_value);
+            sem_post(&semaphore); // 释放信号量
+            // sem_getvalue(&semaphore, &sem_value);
+            // LogInfo("post后semaphore = {}", sem_value);
+
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
             
