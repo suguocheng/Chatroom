@@ -73,9 +73,10 @@ void Client::do_recv() {
         buf[received_len] = '\0'; // 确保字符串结束符
 
         if (received_len == 0 || buf[0] == '\0') {
-            usleep(50000);
             continue; // 继续等待下一个数据
         }
+
+        LogInfo("buf = {}", buf);
 
         try {
             j = json::parse(buf); // 解析 JSON 字符串
@@ -156,7 +157,7 @@ void Client::do_recv() {
             }
             // sem_post(&semaphore); // 释放信号量
 
-            // LogInfo("friend_request_notification = {}", (notice_map["friend_request_notification"]));
+            // LogInfo("message_notification = {}", (notice_map["message_notification"]));
             
         } else if (j["type"] == "add_friend") {
             std::cout << j["result"] << std::endl;
@@ -265,3 +266,5 @@ void Client::heartbeat()
         send_json(connecting_sockfd, j);
     }
 }
+
+//还得有个实时通知功能的线程

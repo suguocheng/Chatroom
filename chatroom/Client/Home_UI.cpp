@@ -1,8 +1,8 @@
 #include "Home_UI.h"
 #include "../log/mars_logger.h"
 
-std::unordered_map<std::string, int> notice_map;
 bool confirmed_as_friend = 0;
+std::unordered_map<std::string, int> notice_map;
 
 void home_UI(int connecting_sockfd, std::string UID) {
     int n;
@@ -336,7 +336,7 @@ void friend_details(int connecting_sockfd, std::string UID, std::string friend_U
 }
 
 void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID) {
-
+    //加个删除redis中消息通知
     //确认是好友
     json j;
     j["type"] = "confirmed_as_friend";

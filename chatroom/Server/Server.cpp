@@ -214,13 +214,39 @@ void Server::do_recv(int connected_sockfd) {
                         //将uid与在线套接字绑定，以确定在线状态
                         map[j["UID"]] = connected_sockfd;
                         
-                        //只要登录就发送粗略的消息通知
-                        // json j2;
-                        // std::vector<std::string> notifications;
-                        // j2["type"] = "notice";
-                        // j2["friend_request_notification"] = redisManager.get_notification(j["UID"], "friend_request", notifications);
-                        // j2["group_request_notification"] = redisManager.get_notification(j["UID"], "group_request", notifications);
-                        // j2["message_notification"] = redisManager.get_notification(j["UID"], "message", notifications);
+                        //只要登录就发送粗略的消息通知(检查通知是否存在的方式有问题)
+                        json j2;
+                        std::vector<std::string> notifications;
+                        j2["type"] = "notice";
+                        
+                        redisManager.get_notification(j["UID"], "friend_request", notifications);
+                        if (notifications.empty()) {
+                            j2["friend_request_notification"] = 0;
+                        } else {
+                            j2["friend_request_notification"] = 1;
+                        }
+
+                        notifications.clear();
+                        redisManager.get_notification(j["UID"], "group_request", notifications);
+                        if (notifications.empty()) {
+                            j2["group_request_notification"] = 0;
+                        } else {
+                            j2["group_request_notification"] = 1;
+                        }
+
+                        notifications.clear();
+                        redisManager.get_notification(j["UID"], "message", notifications);
+                        if (notifications.empty()) {
+                            j2["message_notification"] = 0;
+                        } else {
+                            j2["message_notification"] = 1;
+                        }
+
+                        // LogInfo("message_notification = {}", (j2["message_notification"]));
+
+                        pool.add_task([this, connected_sockfd, j2] {
+                            do_send(connected_sockfd,j2);
+                        });
                         
                         //将数据发送回原客户端
                         pool.add_task([this, connected_sockfd, j] {
