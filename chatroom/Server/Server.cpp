@@ -908,8 +908,12 @@ void Server::do_recv(int connected_sockfd) {
                 do_send(connected_sockfd,j);
             });
             
-        } else if (j["type"] == "") {
-            
+        } else if (j["type"] == "handle_new_messages") {
+            std::string friend_UID = j["friend_UID"].get<std::string>();
+            std::string notification = "好友" + redisManager.get_username(friend_UID) + "(UID为:" + friend_UID + ")" + "给你发来了新消息";
+
+            redisManager.delete_notification(j["UID"], "message", notification);
+
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
@@ -954,40 +958,40 @@ void Server::do_send(int connected_sockfd, const json& j) {
 }
 
 //专门负责检测客户端是否连接
-void Server::heartbeat(int connected_sockfd) {
-    json j;
+// void Server::heartbeat(int connected_sockfd) {
+//     json j;
 
-    struct msghdr msg = {0};
-    struct iovec iov[1];
-    char buf[1024] = {0};
+//     struct msghdr msg = {0};
+//     struct iovec iov[1];
+//     char buf[1024] = {0};
 
-    iov[0].iov_base = buf;
-    iov[0].iov_len = sizeof(buf) - 1;
-    msg.msg_iov = iov;
-    msg.msg_iovlen = 1;
+//     iov[0].iov_base = buf;
+//     iov[0].iov_len = sizeof(buf) - 1;
+//     msg.msg_iov = iov;
+//     msg.msg_iovlen = 1;
 
-    ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
-    if (received_len < 0) {
-        perror("recvmsg");
-        return;
-    }
+//     ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
+//     if (received_len < 0) {
+//         perror("recvmsg");
+//         return;
+//     }
 
-    if (received_len == 0 || buf[0] == '\0') {
-        return; // 继续等待下一个数据
-    }
+//     if (received_len == 0 || buf[0] == '\0') {
+//         return; // 继续等待下一个数据
+//     }
 
-    buf[received_len] = '\0'; // 确保字符串结束符
+//     buf[received_len] = '\0'; // 确保字符串结束符
 
-    // LogInfo("buf: {}", buf);
+//     // LogInfo("buf: {}", buf);
 
-    try {
-        j = json::parse(buf); // 解析 JSON 字符串
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
-        return;
-    }
+//     try {
+//         j = json::parse(buf); // 解析 JSON 字符串
+//     } catch (const std::exception& e) {
+//         std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
+//         return;
+//     }
 
-    if (j["type"] == "heartbeat") {
+//     if (j["type"] == "heartbeat") {
         
-    }
-}
+//     }
+// }

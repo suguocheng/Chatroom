@@ -77,11 +77,19 @@ void message_UI(int connecting_sockfd, std::string UID) {
         // sem_getvalue(&semaphore, &sem_value);
         // LogInfo("wait后semaphore = {}", sem_value);
 
+        json j2;
+        j2["type"] = "handle_new_messages";
+        j2["UID"] = UID;
         std::string friend_UID;
 
         std::cout << std::endl;
         std::cout << "请输入你想要处理消息的好友的UID(输入0返回):";
         std::cin >> friend_UID;
+
+        j2["friend_UID"] = friend_UID;
+
+        //无需等待信号量，因为不需要返回输出
+        send_json(connecting_sockfd, j2);
 
         if (friend_UID == "0") {
             return;

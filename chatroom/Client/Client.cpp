@@ -27,9 +27,9 @@ Client::Client(int port) : pool(5){
     });
     
     //将心跳发送函数添加到线程池运行
-    pool.add_task([this] {
-        heartbeat();
-    });
+    // pool.add_task([this] {
+    //     heartbeat();
+    // });
 
     //主菜单，在里面负责发送数据
     main_menu_UI(connecting_sockfd);
@@ -76,7 +76,7 @@ void Client::do_recv() {
             continue; // 继续等待下一个数据
         }
 
-        LogInfo("buf = {}", buf);
+        // LogInfo("buf = {}", buf);
 
         try {
             j = json::parse(buf); // 解析 JSON 字符串
@@ -255,16 +255,18 @@ void Client::do_recv() {
     // }
 }
 
-void Client::heartbeat() 
-{
-    while (1) 
-    {
-        std::string msg = "heartbeat";
-        usleep(1000000); // 暂停1秒
-        j["type"] = "heartbeat";
-        j["msg"] = msg;
-        send_json(connecting_sockfd, j);
-    }
-}
+
+//这个心跳函数好像会与正常的操作冲突造成异常
+// void Client::heartbeat() 
+// {
+//     while (1) 
+//     {
+//         std::string msg = "heartbeat";
+//         usleep(1000000); // 暂停1秒
+//         j["type"] = "heartbeat";
+//         j["msg"] = msg;
+//         send_json(connecting_sockfd, j);
+//     }
+// }
 
 //还得有个实时通知功能的线程
