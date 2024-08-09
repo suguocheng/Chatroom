@@ -11,8 +11,10 @@ public:
     RedisManager();
     ~RedisManager();
 
-    std::string generateUniqueId();
-    void initializeCounter();
+    std::string generate_UID();
+    std::string generate_GID();
+    void initialize_UID_counter();
+    void initialize_GID_counter();
 
     bool add_user(const std::string& username, const std::string& password, const std::string& security_question, const std::string& security_answer);
     std::string get_UID(const std::string& username);
@@ -38,16 +40,27 @@ public:
     bool check_block_friend(const std::string& UID, const std::string& friend_UID);
     bool delete_block_friend(const std::string& UID, const std::string& friend_UID);
 
-    bool add_group(const std::string& userId, const std::string& groupId);
-    bool get_group();
-    bool modify_group();
-    bool delete_group();
+    bool add_private_chat_message(const std::string& UID, const std::string& friend_UID, const std::string& message);
+    bool get_private_chat_messages(const std::string& UID, const std::string& friend_UID, std::vector<std::string>& messages);
 
-    bool add_chat_message(const std::string& UID, const std::string& friend_UID, const std::string& message);
-    bool get_chat_messages(const std::string& UID, const std::string& friend_UID, std::vector<std::string>& messages);
+    bool add_group(const std::string& group_name, const std::string& group_owner_UID);
+    std::string get_group_name(const std::string& GID);
+    std::string get_group_owner_UID(const std::string& GID);
+    bool modify_group_name(const std::string& GID, const std::string& new_group_name);
+    bool modify_group_owner_UID(const std::string& GID, const std::string& new_group_owner_UID);
+    bool delete_group(const std::string& GID);
 
-    bool add_group_chat_message(const std::string& groupId, const std::string& message);
-    bool get_group_chat_message();
+    bool add_group_member(const std::string& GID, const std::string& request_UID);
+    bool get_groups(const std::string& UID, std::vector<std::string>& groups_UID);
+    bool get_group_members(const std::string& GID, std::vector<std::string>& members_UID);
+    bool delete_group_member(const std::string& GID, const std::string& member_UID);
+
+    bool add_administrator(const std::string& GID, const std::string& member_UID);
+    bool check_administrator(const std::string& GID, const std::string& member_UID);
+    bool delete_administrator(const std::string& GID, const std::string& member_UID);
+
+    bool add_group_chat_message(const std::string& GID, const std::string& member_UID, const std::string& message);
+    bool get_group_chat_messages(const std::string& GID, const std::string& member_UID, std::vector<std::string>& messages);
 
 private:
     redisContext* redisContext_;

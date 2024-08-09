@@ -914,6 +914,16 @@ void Server::do_recv(int connected_sockfd) {
 
             redisManager.delete_notification(j["UID"], "message", notification);
 
+        } else if (j["type"] == "create_group") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {

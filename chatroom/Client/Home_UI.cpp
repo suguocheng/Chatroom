@@ -186,12 +186,12 @@ void friends_UI(int connecting_sockfd, std::string UID) {
         if (friend_UID == "0") {
             return;
         } else {
-            friend_details(connecting_sockfd, UID, friend_UID);
+            friend_details_UI(connecting_sockfd, UID, friend_UID);
         }
     }
 }
 
-void friend_details(int connecting_sockfd, std::string UID, std::string friend_UID) {
+void friend_details_UI(int connecting_sockfd, std::string UID, std::string friend_UID) {
     int n;
 
     //确认是好友
@@ -533,7 +533,26 @@ void groups_request_UI(int connecting_sockfd, std::string UID) {
     sem_wait(&semaphore); // 等待信号量
 
     waiting_for_input();
+}
 
+void create_group_UI(int connecting_sockfd, std::string UID) {
+    system("clear");
+    std::cout << "创建群聊" << std::endl;
+
+    json j;
+    j["type"] = "create_group";
+    std::string group_name;
+
+    std::cout << "请输入你的群名：";
+    std::cin >> group_name;
+    j["group_name"] = group_name;
+
+    j["group_owner_UID"] = UID;
+
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    waiting_for_input();
 }
 
 bool user_UI(int connecting_sockfd, std::string UID) {
