@@ -511,8 +511,28 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                 
 
             } else if (n == 8) {
+                char choice;
+                while (1) {
+                    std::cout << "确认退出该群组吗？(Y/N):";
+                    std::cin >> choice;
+                    if (choice == 'Y' || choice == 'y') {
+                        json j6;
+                        j6["type"] = "exit_group";
+                        j6["UID"] = UID;
+                        j6["GID"] = GID;
 
+                        send_json(connecting_sockfd, j6);
+                        sem_wait(&semaphore); // 等待信号量
 
+                        waiting_for_input();
+                        return;
+                    } else if (choice == 'N' || choice == 'n') {
+                        break;
+                    } else {
+                        std::cout << "请正确输入选项！" << std::endl;
+                        waiting_for_input();
+                    }
+                }
             } else if (n == 9) {
 
 

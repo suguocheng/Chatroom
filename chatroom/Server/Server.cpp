@@ -1166,7 +1166,38 @@ void Server::do_recv(int connected_sockfd) {
                 do_send(connected_sockfd,j);
             });
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "exit_group") {
+            if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+                j["result"] = "您是群主，请转让群主后退出群组，或者解散群组";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                if (redisManager.check_administrator(j["GID"], j["UID"]) == 0) {
+                    redisManager.delete_group_member(j["GID"], j["UID"]);
+
+                    j["result"] = "退出成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else {
+                    redisManager.delete_administrator(j["GID"], j["UID"]);
+                    redisManager.delete_group_member(j["GID"], j["UID"]);
+
+                    j["result"] = "退出成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                }
+            }
             
         } else if (j["type"] == "") {
             
