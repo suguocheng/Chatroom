@@ -224,7 +224,9 @@ void Client::do_recv() {
             // sem_getvalue(&semaphore, &sem_value);
             // LogInfo("post后semaphore = {}", sem_value);
 
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "create_group") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             

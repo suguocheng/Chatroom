@@ -685,7 +685,7 @@ bool RedisManager::add_group_member(const std::string& GID, const std::string& r
     return 1;
 }
 
-bool RedisManager::get_groups(const std::string& UID, std::vector<std::string>& groups_UID) {
+bool RedisManager::get_groups(const std::string& UID, std::vector<std::string>& groups_GID) {
     redisReply* reply = (redisReply*)redisCommand(redisContext_, "SMEMBERS group_members:%s", UID.c_str());
     if (reply == NULL) {
         std::cerr << "Redis 命令执行失败！" << std::endl;
@@ -698,10 +698,10 @@ bool RedisManager::get_groups(const std::string& UID, std::vector<std::string>& 
         return 0;
 
     } else {
-        groups_UID.resize(reply->elements);
+        groups_GID.resize(reply->elements);
 
         for (size_t i = 0; i < reply->elements; ++i) {
-            groups_UID[i] = reply->element[i]->str;
+            groups_GID[i] = reply->element[i]->str;
         }
     }
 

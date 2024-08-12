@@ -51,7 +51,7 @@ public:
     bool delete_group(const std::string& GID);
 
     bool add_group_member(const std::string& GID, const std::string& request_UID);
-    bool get_groups(const std::string& UID, std::vector<std::string>& groups_UID);
+    bool get_groups(const std::string& UID, std::vector<std::string>& groups_GID);
     bool get_group_members(const std::string& GID, std::vector<std::string>& members_UID);
     bool delete_group_member(const std::string& GID, const std::string& member_UID);
 

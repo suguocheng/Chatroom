@@ -153,7 +153,7 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
             groups_request_UI(connecting_sockfd, UID);
 
         } else if (n == 6) {
-            //创建群聊
+            create_group_UI(connecting_sockfd, UID);
 
         } else if (n == 7) {
             return;
@@ -409,20 +409,27 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
 }
 
 void groups_UI(int connecting_sockfd, std::string UID) {
-    char n;
+    std::string GID;
     while (1) {
         system("clear");
-        std::cout << "群聊" << std::endl;
-        //按首字母排序输出群聊列表
-        std::cout << "输入R返回" << std::endl;
-        std::cout << "请输入：";
-        std::cin >> n;
-        if (n == 'r' || n == 'R') {
-            return;
+        std::cout << "群组" << std::endl << std::endl;
+        
+        json j;
+        j["type"] = "view_groups_list";
+        j["UID"] = UID;
 
+        send_json(connecting_sockfd, j);
+        sem_wait(&semaphore); // 等待信号量
+
+        std::cout << std::endl;
+
+        std::cout << "请输入想查看的群组的GID(输入0返回):";
+        std::cin >> GID;
+
+        if (GID == "0") {
+            return;
         } else {
-            std::cout << "请正确输入选项！" << std::endl;
-            waiting_for_input();
+            friend_details_UI(connecting_sockfd, UID, GID);
         }
     }
 }
@@ -474,13 +481,29 @@ void add_friend_UI(int connecting_sockfd, std::string UID) {
     j["search_UID"] = search_UID;
 
     send_json(connecting_sockfd, j);
-
     sem_wait(&semaphore); // 等待信号量
+
     waiting_for_input();
 }
 
-void add_group_UI() {
+void add_group_UI(int connecting_sockfd, std::string UID) {
+    system("clear");
+    std::cout << "添加好友" << std::endl;
 
+    json j;
+    j["type"] = "add_group";
+    std::string search_GID;
+
+    j["UID"] = UID;
+
+    std::cout << "搜索(请输入用户UID):";
+    std::cin >> search_GID;
+    j["search_UID"] = search_GID;
+
+    send_json(connecting_sockfd, j);
+
+    sem_wait(&semaphore); // 等待信号量
+    waiting_for_input();
 }
 
 void friends_request_UI(int connecting_sockfd, std::string UID) {
@@ -488,7 +511,7 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
     
     while (1) {
         system("clear");
-        std::cout << "好友申请" << std::endl;
+        std::cout << "好友申请" << std::endl << std::endl;
 
         json j;
         j["type"] = "view_friend_requests";
@@ -503,6 +526,7 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 
         j2["UID"] = UID;
 
+        std::cout << std::endl;
         std::cout << "请输入你同意申请的用户UID(输入0返回):";
         std::cin >> request_UID;
 

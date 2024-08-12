@@ -812,7 +812,7 @@ void Server::do_recv(int connected_sockfd) {
         } else if (j["type"] == "get_chat_messages") {
 
             std::vector<std::string> messages;
-            redisManager.get_chat_messages(j["UID"], j["friend_UID"], messages);
+            redisManager.get_private_chat_messages(j["UID"], j["friend_UID"], messages);
 
             j["messages"] = messages;
 
@@ -834,7 +834,7 @@ void Server::do_recv(int connected_sockfd) {
             } else {
                 
                 //发送失败
-                if (redisManager.add_chat_message(j["UID"], j["friend_UID"], j["message"]) != 1) {
+                if (redisManager.add_private_chat_message(j["UID"], j["friend_UID"], j["message"]) != 1) {
                     j["result"] = "发送失败";
 
                     //将数据发送回原客户端
@@ -915,8 +915,29 @@ void Server::do_recv(int connected_sockfd) {
             redisManager.delete_notification(j["UID"], "message", notification);
 
         } else if (j["type"] == "create_group") {
+            if(redisManager.add_group(j["group_name"], j["group_owner_UID"]) == 0) {
+
+                //创建失败
+                j["result"] = "创建失败";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                
+                //创建成功
+                j["result"] = "创建成功";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            }
+        } else if (j["type"] == "add_group") {
             
-        } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
             
