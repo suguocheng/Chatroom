@@ -455,7 +455,7 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
             std::cout << "2.群组GID" << std::endl; 
             std::cout << "3.群组成员列表" << std::endl;
             std::cout << "4.进入群聊" << std::endl;
-            std::cout << "5.添加管理员" << std::endl;
+            std::cout << "5.设置管理员" << std::endl;
             std::cout << "6.移除管理员" << std::endl;
             std::cout << "7.移除成员" << std::endl;
             std::cout << "8.退出群组" << std::endl;
@@ -499,7 +499,7 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                 waiting_for_input();
 
             } else if (n == 4) {
-                //群聊
+                group_chat(connecting_sockfd, UID, GID);
 
             } else if (n == 5) {
                 std::string member_UID;
@@ -567,18 +567,19 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                     std::cout << "确认退出该群组吗？(Y/N):";
                     std::cin >> choice;
                     if (choice == 'Y' || choice == 'y') {
-                        json j6;
-                        j6["type"] = "exit_group";
-                        j6["UID"] = UID;
-                        j6["GID"] = GID;
+                        json j8;
+                        j8["type"] = "exit_group";
+                        j8["UID"] = UID;
+                        j8["GID"] = GID;
 
-                        send_json(connecting_sockfd, j6);
+                        send_json(connecting_sockfd, j8);
                         sem_wait(&semaphore); // 等待信号量
 
                         waiting_for_input();
                         return;
                     } else if (choice == 'N' || choice == 'n') {
                         break;
+
                     } else {
                         std::cout << "请正确输入选项！" << std::endl;
                         waiting_for_input();
@@ -600,6 +601,68 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
         std::cout << "您不在该群组中！" << std::endl;
         waiting_for_input();
     }
+}
+
+void group_chat(int connecting_sockfd, std::string UID, std::string GID) {
+    //确认在群组
+    json j;
+    j["type"] = "confirm_in_group";
+    j["UID"] = UID;
+    j["GID"] = GID;
+    
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    if(confirm_in_group != 0) {
+        confirm_in_group = 0;
+        std::cin.ignore();
+        while (1) {
+            system("clear");
+            json j2;
+            j2["type"] = "get_group_name";
+            j2["GID"] = GID;
+
+            send_json(connecting_sockfd, j2);
+            sem_wait(&semaphore); // 等待信号量
+
+            std::cout << std::endl;
+
+            json j3;
+            j3["type"] = "get_group_chat_messages";
+            j3["GID"] = GID;
+
+            send_json(connecting_sockfd, j3);
+            sem_wait(&semaphore); // 等待信号量
+
+            std::cout << std::endl;
+            std::cout << "请输入你要发送的消息(输入0退出):";
+
+            json j4;
+            std::string message;
+
+            j4["type"] = "send_group_chat_messages";
+            j4["UID"] = UID;
+            j4["GID"] = GID;
+
+            std::getline(std::cin, message);
+            j4["message"] = message;
+
+            if (message == "0") {
+                return;
+            }
+
+            send_json(connecting_sockfd, j4);
+            sem_wait(&semaphore); // 等待信号量
+
+            std::cout << "按回车键继续..." << std::endl;
+            std::cin.get(); // 等待用户输入
+        }
+    } else {
+        system("clear");
+        std::cout << "您不在该群组中！" << std::endl;
+        waiting_for_input();
+    }
+
 }
 
 void add_friends_groups_UI(int connecting_sockfd, std::string UID) {

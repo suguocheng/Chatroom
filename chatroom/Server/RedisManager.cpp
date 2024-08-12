@@ -847,7 +847,7 @@ bool RedisManager::add_group_chat_message(const std::string& GID, const std::str
     return 1;
 }
 
-bool RedisManager::get_group_chat_messages(const std::string& GID, const std::string& member_UID, std::vector<std::string>& messages) {
+bool RedisManager::get_group_chat_messages(const std::string& GID, std::vector<std::string>& messages) {
     redisReply *reply = (redisReply*) redisCommand(redisContext_, "LRANGE group_chat:%s 0 -1", GID.c_str());
     if (reply == NULL) {
         std::cerr << "Redis 命令执行失败！" << std::endl;

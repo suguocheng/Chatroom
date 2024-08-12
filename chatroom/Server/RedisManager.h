@@ -61,7 +61,7 @@ public:
     bool delete_administrator(const std::string& GID, const std::string& member_UID);
 
     bool add_group_chat_message(const std::string& GID, const std::string& member_UID, const std::string& message);
-    bool get_group_chat_messages(const std::string& GID, const std::string& member_UID, std::vector<std::string>& messages);
+    bool get_group_chat_messages(const std::string& GID, std::vector<std::string>& messages);
 
 private:
     redisContext* redisContext_;

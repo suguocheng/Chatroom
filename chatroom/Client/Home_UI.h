@@ -17,6 +17,7 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
 void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID);
 void groups_UI(int connecting_sockfd, std::string UID);
 void group_details_UI(int connecting_sockfd, std::string UID, std::string GID);
+void group_chat(int connecting_sockfd, std::string UID, std::string GID);
 void add_friends_groups_UI(int connecting_sockfd, std::string UID);
 void add_friend_UI(int connecting_sockfd, std::string UID);
 void add_group_UI(int connecting_sockfd, std::string UID);

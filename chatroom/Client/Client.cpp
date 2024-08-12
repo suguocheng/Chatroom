@@ -257,7 +257,7 @@ void Client::do_recv() {
             sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "get_group_name") {
-            std::cout << j["result"] << std::endl;
+            std::cout << j["result"] << "的群聊" << std::endl;
             sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "view_member_list") {
@@ -291,9 +291,15 @@ void Client::do_recv() {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "get_group_chat_messages") {
+            for (const auto& message : j["messages"]) {
+                std::cout << message << std::endl;
+            }
+            sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "send_group_chat_messages") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             
