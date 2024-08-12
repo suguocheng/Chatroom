@@ -57,6 +57,7 @@ public:
 
     bool add_administrator(const std::string& GID, const std::string& member_UID);
     bool check_administrator(const std::string& GID, const std::string& member_UID);
+    bool get_administrators(const std::string& GID, std::vector<std::string>& administrators_UID);
     bool delete_administrator(const std::string& GID, const std::string& member_UID);
 
     bool add_group_chat_message(const std::string& GID, const std::string& member_UID, const std::string& message);

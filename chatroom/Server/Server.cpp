@@ -243,10 +243,12 @@ void Server::do_recv(int connected_sockfd) {
                         }
 
                         // LogInfo("message_notification = {}", (j2["message_notification"]));
-
+                        
                         pool.add_task([this, connected_sockfd, j2] {
                             do_send(connected_sockfd,j2);
                         });
+
+                        usleep(10000);
                         
                         //将数据发送回原客户端
                         pool.add_task([this, connected_sockfd, j] {
@@ -640,11 +642,7 @@ void Server::do_recv(int connected_sockfd) {
 
         } else if (j["type"] == "agree_to_friend_request") {
 
-            LogInfo("准备添加好友");
-
-            if (j["request_UID"] == 0) {
-                continue;
-            }
+            // LogInfo("准备添加好友");
 
             if (redisManager.get_username(j["request_UID"]) == "") {
 
@@ -937,11 +935,165 @@ void Server::do_recv(int connected_sockfd) {
 
             }
         } else if (j["type"] == "add_group") {
+            //获取群组名失败
+            if (redisManager.get_group_name(j["search_GID"]) == "") {
+
+                //群组不存在
+                j["result"] = "该群组不存在";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                int n;
+                std::vector<std::string> groups_GID;
+                redisManager.get_friends(j["UID"], groups_GID);
+
+                n = 0;
+                for(int i = 0; i < groups_GID.size() ; ++i) {
+                    if (groups_GID[i] == j["search_GID"]) {
+                        n = 1;
+                        break;
+                    }
+                }
+
+                if (n == 0) {
+                    j["result"] = "您已在该群组中";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                } else {
+                    //存储好友申请通知到redis
+                    std::string UID = j["UID"].get<std::string>();
+                    std::string search_GID = j["search_GID"].get<std::string>();
+                    std::string notification = "用户" + UID + "想加入群聊" + search_GID;
+
+                    //存储群组申请通知
+                    redisManager.add_notification(redisManager.get_group_owner_UID(j["search_GID"]), "group_request", notification);
+
+                    std::vector<std::string> administrators_UID;
+                    redisManager.get_administrators(j["search_GID"], administrators_UID);
+
+                    for (const auto& administrator_UID : administrators_UID) {
+                        redisManager.add_notification(administrator_UID, "group_request", notification);
+                    }
+
+                    //申请成功
+                    j["result"] = "申请成功";
+
+                    //查询群主是否在线
+                    auto it = map.find(redisManager.get_group_owner_UID(j["search_GID"]));
+
+                    //在线
+                    if (it != map.end()) {
+
+                        json j2;
+                        j2["type"] = "notice";
+                        j2["group_request_notification"] = 1;
+
+                        int connected_sockfd2 = it->second;
+
+                        pool.add_task([this, connected_sockfd2, j2] {
+                            do_send(connected_sockfd2, j2);
+                        });
+                    
+                    }
+
+                    for (const auto& administrator_UID : administrators_UID) {
+                        //查询管理员是否在线
+                        auto it = map.find(administrator_UID);
+
+                        //在线
+                        if (it != map.end()) {
+
+                            json j3;
+                            j3["type"] = "notice";
+                            j3["group_request_notification"] = 1;
+
+                            int connected_sockfd3 = it->second;
+
+                            pool.add_task([this, connected_sockfd3, j3] {
+                                do_send(connected_sockfd3, j3);
+                            });
+                        
+                        }
+                    }
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                }
+            }
             
+        } else if (j["type"] == "view_group_requests") {
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "group_request", notifications);
+            j["group_requests"] = notifications;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
             
-        } else if (j["type"] == "") {
-            
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "agree_to_group_request") {
+
+            if (redisManager.get_username(j["request_UID"]) == "") {
+
+                //用户不存在
+                j["result"] = "请输入正确用户";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                if (redisManager.get_group_name(j["request_GID"]) == "") {
+                    j["result"] = "请输入正确群组";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else {
+                    if (redisManager.add_group_member(j["request_GID"], j["request_UID"]) == 0) {
+                        j["result"] = "加入群组失败";
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+
+                    } else {
+                        std::string request_UID = j["request_UID"].get<std::string>();
+                        std::string request_GID = j["request_GID"].get<std::string>();
+                        std::string notification = "用户" + request_UID + "想加入群聊" + request_GID;
+
+                        // LogInfo("准备删除通知");
+                        //删除群组申请通知
+                        redisManager.delete_notification(redisManager.get_group_owner_UID(j["request_GID"]), "group_request", notification);
+
+                        std::vector<std::string> administrators_UID;
+                        redisManager.get_administrators(j["request_GID"], administrators_UID);
+
+                        for (const auto& administrator_UID : administrators_UID) {
+                            redisManager.delete_notification(administrator_UID, "group_request", notification);
+                        }
+
+                        j["result"] = "加入群组成功";
+
+                        //将数据发送回原客户端
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+
+                    }
+                }
+            }
             
         } else if (j["type"] == "") {
             

@@ -125,7 +125,7 @@ void contacts_UI(int connecting_sockfd, std::string UID) {
             std::cout << "\n";
         }
 
-        std::cout << "6.创建群聊" << std::endl;
+        std::cout << "6.创建群组" << std::endl;
         std::cout << "7.返回" << std::endl;
         std::cout << "请输入：";
 
@@ -455,7 +455,7 @@ void add_friends_groups_UI(int connecting_sockfd, std::string UID) {
         if (n == 1) {
             add_friend_UI(connecting_sockfd, UID);
         } else if (n == 2) {
-            
+            add_group_UI(connecting_sockfd, UID);
         } else if (n == 3) {
             return;
 
@@ -488,7 +488,7 @@ void add_friend_UI(int connecting_sockfd, std::string UID) {
 
 void add_group_UI(int connecting_sockfd, std::string UID) {
     system("clear");
-    std::cout << "添加好友" << std::endl;
+    std::cout << "添加群组" << std::endl;
 
     json j;
     j["type"] = "add_group";
@@ -496,9 +496,9 @@ void add_group_UI(int connecting_sockfd, std::string UID) {
 
     j["UID"] = UID;
 
-    std::cout << "搜索(请输入用户UID):";
+    std::cout << "搜索(请输入群组GID):";
     std::cin >> search_GID;
-    j["search_UID"] = search_GID;
+    j["search_GID"] = search_GID;
 
     send_json(connecting_sockfd, j);
 
@@ -544,24 +544,50 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 }
 
 void groups_request_UI(int connecting_sockfd, std::string UID) {
-    system("clear");
-    std::cout << "加群申请" << std::endl;
+    notice_map["group_request_notification"] == 0;
+    
+    while (1) {
+        system("clear");
+        std::cout << "加群申请" << std::endl << std::endl;
 
-    notice_map["friend_request_notification"] == 0;
+        json j;
+        j["type"] = "view_group_requests";
+        j["UID"] = UID;
 
-    json j;
-    j["type"] = "view_group_requests";
-    j["UID"] = UID;
+        send_json(connecting_sockfd, j);
+        sem_wait(&semaphore); // 等待信号量
 
-    send_json(connecting_sockfd, j);
-    sem_wait(&semaphore); // 等待信号量
+        json j2;
+        j2["type"] = "agree_to_group_request";
+        std::string request_UID, request_GID;
 
-    waiting_for_input();
+        j2["UID"] = UID;
+
+        //这里防止一个人申请进入多个群聊，所以要输入GID
+        std::cout << std::endl;
+        std::cout << "请输入你同意申请的用户UID(输入0返回):";
+        std::cin >> request_UID;
+
+        if (request_UID == "0") {
+            return;
+        }
+
+        std::cout << "请输入你同意用户进入的群组GID:";
+        std::cin >> request_GID;
+
+        j2["request_UID"] = request_UID;
+        j2["request_GID"] = request_GID;
+
+        send_json(connecting_sockfd, j2);
+        sem_wait(&semaphore); // 等待信号量
+
+        waiting_for_input();
+    }
 }
 
 void create_group_UI(int connecting_sockfd, std::string UID) {
     system("clear");
-    std::cout << "创建群聊" << std::endl;
+    std::cout << "创建群组" << std::endl;
 
     json j;
     j["type"] = "create_group";

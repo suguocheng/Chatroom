@@ -228,6 +228,26 @@ void Client::do_recv() {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
             
+        } else if (j["type"] == "add_group") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
+            
+        } else if (j["type"] == "view_group_requests") {
+            for (const auto& notification : j["group_requests"]) {
+                std::cout << notification << std::endl;
+            }
+            sem_post(&semaphore); // 释放信号量
+            
+        } else if (j["type"] == "agree_to_group_request") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {

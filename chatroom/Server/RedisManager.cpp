@@ -788,7 +788,32 @@ bool RedisManager::check_administrator(const std::string& GID, const std::string
     }
 
     freeReplyObject(reply);
-    return 0;
+    return 1;
+}
+
+bool RedisManager::get_administrators(const std::string& GID, std::vector<std::string>& administrators_UID) {
+    redisReply* reply = (redisReply*)redisCommand(redisContext_, "SMEMBERS group_administrators:%s", GID.c_str());
+    if (reply == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
+    // LogInfo("reply->type = {}", reply->type);
+    if (reply->type != REDIS_REPLY_ARRAY) {
+        std::cerr << "Redis 返回的不是数组类型" << std::endl;
+        freeReplyObject(reply);
+        return 0;
+
+    } else {
+        administrators_UID.resize(reply->elements);
+
+        for (size_t i = 0; i < reply->elements; ++i) {
+            administrators_UID[i] = reply->element[i]->str;
+        }
+    }
+
+    freeReplyObject(reply);
+    return 1;
 }
 
 bool RedisManager::delete_administrator(const std::string& GID, const std::string& member_UID) {
