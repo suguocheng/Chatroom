@@ -248,11 +248,32 @@ void Client::do_recv() {
             }
             sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "confirm_in_group") {
+            if (j["result"] == "您在该群组中") {
+                confirm_in_group = 1;
+            } else {
+                confirm_in_group = 0;
+            }
+            sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "get_group_name") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "view_member_list") {
+            std::cout << "群主:" << std::endl;
+            std::cout << "用户名:" << j["group_owner_username"] << "  UID:" << j["group_owner_UID"] << std::endl;
+
+            std::cout << "管理员:" << std::endl;
+            for (int i = 0; i < j["administrators_username"].size(); ++i) {
+                std::cout << "用户名:" << j["administrators_username"][i] << "  UID:" << j["administrators_UID"][i] << std::endl;
+            }
+
+            std::cout << "成员:" << std::endl;
+            for (int i = 0; i < j["members_username"].size(); ++i) {
+                std::cout << "用户名:" << j["members_username"][i] << "  UID:" << j["members_UID"][i] << std::endl;
+            }
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             

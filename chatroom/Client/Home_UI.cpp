@@ -1,8 +1,9 @@
 #include "Home_UI.h"
 #include "../log/mars_logger.h"
 
-bool confirmed_as_friend = 0;
 std::unordered_map<std::string, int> notice_map;
+bool confirmed_as_friend = 0;
+bool confirm_in_group = 0;
 
 void home_UI(int connecting_sockfd, std::string UID) {
     int n;
@@ -91,7 +92,7 @@ void message_UI(int connecting_sockfd, std::string UID) {
         if (friend_UID == "0") {
             return;
         }
-        
+
         //无需等待信号量，因为不需要返回输出
         send_json(connecting_sockfd, j2);
         
@@ -344,7 +345,6 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
 }
 
 void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID) {
-    //加个删除redis中消息通知
     //确认是好友
     json j;
     j["type"] = "confirmed_as_friend";
@@ -429,8 +429,105 @@ void groups_UI(int connecting_sockfd, std::string UID) {
         if (GID == "0") {
             return;
         } else {
-            friend_details_UI(connecting_sockfd, UID, GID);
+            group_details_UI(connecting_sockfd, UID, GID);
         }
+    }
+}
+
+void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
+    int n;
+
+    //确认在群组
+    json j;
+    j["type"] = "confirm_in_group";
+    j["UID"] = UID;
+    j["GID"] = GID;
+
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    if(confirm_in_group != 0) {
+        confirm_in_group = 0;
+        while (1) {
+            system("clear");
+            std::cout << "群组详情" << std::endl;
+            std::cout << "1.群组名" << std::endl; 
+            std::cout << "2.群组GID" << std::endl; 
+            std::cout << "3.群组成员列表" << std::endl;
+            std::cout << "4.进入群聊" << std::endl;
+            std::cout << "5.添加管理员" << std::endl;
+            std::cout << "6.移除管理员" << std::endl;
+            std::cout << "7.移除成员" << std::endl;
+            std::cout << "8.退出群组" << std::endl;
+            std::cout << "9.解散群组" << std::endl;
+            std::cout << "10.返回" << std::endl;
+            std::cout << "请输入：";
+
+            // 读取用户输入
+            if (!(std::cin >> n)) {
+                std::cin.clear(); // 清除错误标志
+                std::cout << "无效的输入，请输入一个数字！" << std::endl;
+                waiting_for_input();
+                continue; // 重新显示菜单
+            }
+
+            if (n == 1) {
+                system("clear");
+                json j2;
+                j2["type"] = "get_group_name";
+                j2["GID"] = GID;
+
+                send_json(connecting_sockfd, j2);
+                sem_wait(&semaphore); // 等待信号量
+
+                waiting_for_input();
+
+            } else if (n == 2) {
+                system("clear");
+                std::cout << GID << std::endl;
+                waiting_for_input();
+
+            } else if (n == 3) {
+                system("clear");
+                json j3;
+                j3["type"] = "view_member_list";
+                j3["GID"] = GID;
+
+                send_json(connecting_sockfd, j3);
+                sem_wait(&semaphore); // 等待信号量
+
+                waiting_for_input();
+
+            } else if (n == 4) {
+                //群聊
+
+            } else if (n == 5) {
+                
+
+            } else if (n == 6) {
+                
+
+            } else if (n == 7) {
+                
+
+            } else if (n == 8) {
+
+
+            } else if (n == 9) {
+
+
+            } else if (n == 10) {
+                return;
+
+            } else {
+                std::cout << "请正确输入选项！" << std::endl;
+                waiting_for_input();
+            }
+        }
+    } else {
+        system("clear");
+        std::cout << "您不在该群组中！" << std::endl;
+        waiting_for_input();
     }
 }
 

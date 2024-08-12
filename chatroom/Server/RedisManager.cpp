@@ -705,10 +705,8 @@ bool RedisManager::get_groups(const std::string& UID, std::vector<std::string>& 
         return 0;
 
     } else {
-        groups_GID.resize(reply->elements);
-
         for (size_t i = 0; i < reply->elements; ++i) {
-            groups_GID[i] = reply->element[i]->str;
+            groups_GID.push_back(reply->element[i]->str);
         }
     }
 
@@ -729,10 +727,8 @@ bool RedisManager::get_group_members(const std::string& GID, std::vector<std::st
         return 0;
 
     } else {
-        members_UID.resize(reply->elements);
-
         for (size_t i = 0; i < reply->elements; ++i) {
-            members_UID[i] = reply->element[i]->str;
+            members_UID.push_back(reply->element[i]->str);
         }
     }
 
@@ -765,7 +761,14 @@ bool RedisManager::add_administrator(const std::string& GID, const std::string& 
         return 0;
     }
 
+    redisReply* reply2 = (redisReply*)redisCommand(redisContext_, "SREM group_members:%s %s", GID.c_str(), member_UID.c_str());
+    if (reply2 == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
     freeReplyObject(reply);
+    freeReplyObject(reply2);
     return 1;
 }
 
@@ -812,10 +815,8 @@ bool RedisManager::get_administrators(const std::string& GID, std::vector<std::s
         return 0;
 
     } else {
-        administrators_UID.resize(reply->elements);
-
         for (size_t i = 0; i < reply->elements; ++i) {
-            administrators_UID[i] = reply->element[i]->str;
+            administrators_UID.push_back(reply->element[i]->str);
         }
     }
 

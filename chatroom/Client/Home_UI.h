@@ -7,6 +7,7 @@
 
 extern std::unordered_map<std::string, int> notice_map;
 extern bool confirmed_as_friend;
+extern bool confirm_in_group;
 
 void home_UI(int connecting_sockfd, std::string UID);
 void message_UI(int connecting_sockfd, std::string UID);
@@ -15,6 +16,7 @@ void friends_UI(int connecting_sockfd, std::string UID);
 void friend_details_UI(int connecting_sockfd, std::string UID, std::string friend_UID);
 void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID);
 void groups_UI(int connecting_sockfd, std::string UID);
+void group_details_UI(int connecting_sockfd, std::string UID, std::string GID);
 void add_friends_groups_UI(int connecting_sockfd, std::string UID);
 void add_friend_UI(int connecting_sockfd, std::string UID);
 void add_group_UI(int connecting_sockfd, std::string UID);

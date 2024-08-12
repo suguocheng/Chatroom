@@ -947,11 +947,10 @@ void Server::do_recv(int connected_sockfd) {
                 });
 
             } else {
-                int n;
+                int n = 0;
                 std::vector<std::string> groups_GID;
-                redisManager.get_friends(j["UID"], groups_GID);
+                redisManager.get_groups(j["UID"], groups_GID);
 
-                n = 0;
                 for(int i = 0; i < groups_GID.size() ; ++i) {
                     if (groups_GID[i] == j["search_GID"]) {
                         n = 1;
@@ -959,7 +958,7 @@ void Server::do_recv(int connected_sockfd) {
                     }
                 }
 
-                if (n == 0) {
+                if (n == 1) {
                     j["result"] = "您已在该群组中";
 
                     //将数据发送回原客户端
@@ -1111,6 +1110,67 @@ void Server::do_recv(int connected_sockfd) {
             pool.add_task([this, connected_sockfd, j] {
                 do_send(connected_sockfd,j);
             });
+            
+        } else if (j["type"] == "confirm_in_group") {
+            std::vector<std::string> groups_UID;
+            redisManager.get_groups(j["UID"], groups_UID);
+
+            j["result"] = "您不在该群组中";
+            for(int i = 0; i < groups_UID.size() ; ++i) {
+                if (groups_UID[i] == j["GID"]) {
+                    j["result"] = "您在该群组中";
+                    break;
+                }
+            }
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+
+        } else if (j["type"] == "get_group_name") {
+            j["result"] = redisManager.get_group_name(j["GID"]);
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+            
+        } else if (j["type"] == "view_member_list") {
+            std::string group_owner_UID, group_owner_username;
+            std::vector<std::string> administrators_UID, members_UID, administrators_username, members_username;
+
+            group_owner_UID = redisManager.get_group_owner_UID(j["GID"]);
+            group_owner_username = redisManager.get_username(redisManager.get_group_owner_UID(j["GID"]));
+
+            redisManager.get_administrators(j["GID"], administrators_UID);
+            redisManager.get_group_members(j["GID"], members_UID);
+
+            for (int i = 0; i < administrators_UID.size(); ++i) {
+                administrators_username.push_back(redisManager.get_username(administrators_UID[i]));
+            }
+
+            for (int i = 0; i < members_UID.size(); ++i) {
+                members_username.push_back(redisManager.get_username(members_UID[i]));
+            }
+
+            j["group_owner_UID"] = group_owner_UID;
+            j["group_owner_username"] = group_owner_username;
+            j["members_UID"] = members_UID;
+            j["administrators_UID"] = administrators_UID;
+            j["members_username"] = members_username;
+            j["administrators_username"] = administrators_username;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
+            
+        } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
             
