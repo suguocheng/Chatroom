@@ -1095,7 +1095,22 @@ void Server::do_recv(int connected_sockfd) {
                 }
             }
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "view_groups_list") {
+            std::vector<std::string> groups_GID, groups_name;
+
+            redisManager.get_groups(j["UID"], groups_GID);
+            
+            for(int i = 0; i < groups_GID.size() ; ++i) {
+                groups_name.push_back(redisManager.get_group_name(groups_GID[i]));
+            }
+            
+            j["groups_GID"] = groups_GID;
+            j["groups_name"] = groups_name;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
             
         } else if (j["type"] == "") {
             

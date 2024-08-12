@@ -88,12 +88,12 @@ void message_UI(int connecting_sockfd, std::string UID) {
 
         j2["friend_UID"] = friend_UID;
 
-        //无需等待信号量，因为不需要返回输出
-        send_json(connecting_sockfd, j2);
-
         if (friend_UID == "0") {
             return;
         }
+        
+        //无需等待信号量，因为不需要返回输出
+        send_json(connecting_sockfd, j2);
         
         private_chat(connecting_sockfd, UID, friend_UID);
         

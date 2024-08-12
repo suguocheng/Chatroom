@@ -241,8 +241,12 @@ void Client::do_recv() {
         } else if (j["type"] == "agree_to_group_request") {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
-            
-        } else if (j["type"] == "") {
+
+        } else if (j["type"] == "view_groups_list") {
+            for (int i = 0; i < j["groups_name"].size(); ++i) {
+                std::cout << "群组名:" << j["groups_name"][i] << "  GID:" << j["groups_GID"][i] << std::endl;
+            }
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             
