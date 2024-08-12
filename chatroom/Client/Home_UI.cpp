@@ -502,10 +502,44 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                 //群聊
 
             } else if (n == 5) {
-                
+                std::string member_UID;
+                std::cout << "请输入要设置成管理员的成员UID(输入0返回):";
+                std::cin >> member_UID;
+
+                if (member_UID == "0") {
+                    break;
+                }
+
+                json j5;
+                j5["type"] = "set_up_administrator";
+                j5["UID"] = UID;
+                j5["GID"] = GID;
+                j5["member_UID"] = member_UID;
+
+                send_json(connecting_sockfd, j5);
+                sem_wait(&semaphore); // 等待信号量
+
+                waiting_for_input();
 
             } else if (n == 6) {
-                
+                std::string member_UID;
+                std::cout << "请输入要移除管理员的成员UID(输入0返回):";
+                std::cin >> member_UID;
+
+                if (member_UID == "0") {
+                    break;
+                }
+
+                json j6;
+                j6["type"] = "remove_administrator";
+                j6["UID"] = UID;
+                j6["GID"] = GID;
+                j6["member_UID"] = member_UID;
+
+                send_json(connecting_sockfd, j6);
+                sem_wait(&semaphore); // 等待信号量
+
+                waiting_for_input();
 
             } else if (n == 7) {
                 std::string member_UID;
