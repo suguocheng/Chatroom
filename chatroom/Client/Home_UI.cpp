@@ -508,7 +508,24 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                 
 
             } else if (n == 7) {
-                
+                std::string member_UID;
+                std::cout << "请输入要删除的成员UID(输入0返回):";
+                std::cin >> member_UID;
+
+                if (member_UID == "0") {
+                    break;
+                }
+
+                json j7;
+                j7["type"] = "remove_group_member";
+                j7["UID"] = UID;
+                j7["GID"] = GID;
+                j7["member_UID"] = member_UID;
+
+                send_json(connecting_sockfd, j7);
+                sem_wait(&semaphore); // 等待信号量
+
+                waiting_for_input();
 
             } else if (n == 8) {
                 char choice;
@@ -624,7 +641,7 @@ void add_group_UI(int connecting_sockfd, std::string UID) {
 }
 
 void friends_request_UI(int connecting_sockfd, std::string UID) {
-    notice_map["friend_request_notification"] == 0;
+    notice_map["friend_request_notification"] = 0;
     
     while (1) {
         system("clear");
@@ -661,7 +678,7 @@ void friends_request_UI(int connecting_sockfd, std::string UID) {
 }
 
 void groups_request_UI(int connecting_sockfd, std::string UID) {
-    notice_map["group_request_notification"] == 0;
+    notice_map["group_request_notification"] = 0;
     
     while (1) {
         system("clear");

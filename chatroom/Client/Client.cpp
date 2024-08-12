@@ -279,7 +279,9 @@ void Client::do_recv() {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "remove_group_member") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             

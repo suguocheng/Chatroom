@@ -1199,8 +1199,60 @@ void Server::do_recv(int connected_sockfd) {
                 }
             }
             
-        } else if (j["type"] == "") {
-            
+        } else if (j["type"] == "remove_group_member") {
+            if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 1) {
+
+                    redisManager.delete_administrator(j["GID"], j["member_UID"]);
+                    redisManager.delete_group_member(j["GID"], j["member_UID"]);
+
+                    j["result"] = "移除成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else {
+                    redisManager.delete_group_member(j["GID"], j["member_UID"]);
+
+                    j["result"] = "移除成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                }
+            } else if (redisManager.check_administrator(j["GID"], j["UID"]) == 1) {
+                if (j["member_UID"] == redisManager.get_group_owner_UID(j["GID"]) || redisManager.check_administrator(j["GID"], j["member_UID"])) {
+                    j["result"] = "您没有权限移除成员";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else {
+                    redisManager.delete_group_member(j["GID"], j["member_UID"]);
+
+                    j["result"] = "移除成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                }
+            } else {
+                j["result"] = "您没有权限移除成员";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            }
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
