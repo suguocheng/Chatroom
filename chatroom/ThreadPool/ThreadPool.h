@@ -8,7 +8,6 @@
 
 class ThreadPool {
 public:
-    // 使用硬件并发数来创建线程池
     explicit ThreadPool(size_t num_threads);
     ~ThreadPool();
 

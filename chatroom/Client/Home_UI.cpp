@@ -55,7 +55,7 @@ void home_UI(int connecting_sockfd, std::string UID) {
 }
 
 void message_UI(int connecting_sockfd, std::string UID) {
-    char n;
+    int n;
 
     //取消消息通知
     notice_map["message_notification"] = 0;
@@ -78,26 +78,66 @@ void message_UI(int connecting_sockfd, std::string UID) {
         // sem_getvalue(&semaphore, &sem_value);
         // LogInfo("wait后semaphore = {}", sem_value);
 
-        json j2;
-        j2["type"] = "handle_new_messages";
-        j2["UID"] = UID;
-        std::string friend_UID;
-
         std::cout << std::endl;
-        std::cout << "请输入你想要处理消息的好友的UID(输入0返回):";
-        std::cin >> friend_UID;
+        std::cout << "输入1处理好友消息,输入2处理群聊消息(输入0返回):";
 
-        j2["friend_UID"] = friend_UID;
-
-        if (friend_UID == "0") {
-            return;
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
         }
 
-        //无需等待信号量，因为不需要返回输出
-        send_json(connecting_sockfd, j2);
-        
-        private_chat(connecting_sockfd, UID, friend_UID);
-        
+        if (n == 1) {
+            json j2;
+            j2["type"] = "handle_new_friend_messages";
+            j2["UID"] = UID;
+
+            std::string friend_UID;
+
+            std::cout << "请输入你想要处理消息的好友的UID(输入0返回):";
+            std::cin >> friend_UID;
+
+            j2["friend_UID"] = friend_UID;
+
+            if (friend_UID == "0") {
+                return;
+            }
+
+            //无需等待信号量，因为不需要返回输出
+            send_json(connecting_sockfd, j2);
+
+            private_chat(connecting_sockfd, UID, friend_UID);
+
+        } else if (n == 2) {
+            json j2;
+            j2["type"] = "handle_new_group_messages";
+            j2["UID"] = UID;
+
+            std::string GID;
+
+            std::cout << "请输入你想要处理消息的群聊的GID(输入0返回):";
+            std::cin >> GID;
+
+            j2["GID"] = GID;
+
+            if (GID == "0") {
+                return;
+            }
+
+            //无需等待信号量，因为不需要返回输出
+            send_json(connecting_sockfd, j2);
+
+            //进入群聊界面时，不输入东西退出就会删通知，输入了退出就不删了，难办
+            
+            group_chat(connecting_sockfd, UID, GID);
+
+        } else if (n == 0) {
+            return;
+        } else {
+            std::cout << "请正确输入选项！" << std::endl;
+            waiting_for_input();
+        }
     }
 }
 

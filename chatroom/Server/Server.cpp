@@ -906,7 +906,7 @@ void Server::do_recv(int connected_sockfd) {
                 do_send(connected_sockfd,j);
             });
             
-        } else if (j["type"] == "handle_new_messages") {
+        } else if (j["type"] == "handle_new_friend_messages") {
             std::string friend_UID = j["friend_UID"].get<std::string>();
             std::string notification = "好友" + redisManager.get_username(friend_UID) + "(UID为:" + friend_UID + ")" + "给你发来了新消息";
 
@@ -1334,34 +1334,36 @@ void Server::do_recv(int connected_sockfd) {
                 std::string GID = j["GID"].get<std::string>();
                 std::string notification = "群聊" + redisManager.get_group_name(GID) + "(GID为:" + GID + ")" + "有新消息";
 
-                std::vector<std::string> notifications;
-                redisManager.get_notification(redisManager.get_group_owner_UID(GID), "message", notifications);
+                if (redisManager.get_group_owner_UID(GID) != j["UID"]) {
+                    std::vector<std::string> notifications;
+                    redisManager.get_notification(redisManager.get_group_owner_UID(GID), "message", notifications);
 
-                //如果重复就删除以前的消息通知保留最新的
-                for (const auto& n : notifications) {
-                    if (notification == n) {
-                        redisManager.delete_notification(redisManager.get_group_owner_UID(GID), "message", n);
+                    //如果重复就删除以前的消息通知保留最新的
+                    for (const auto& n : notifications) {
+                        if (notification == n) {
+                            redisManager.delete_notification(redisManager.get_group_owner_UID(GID), "message", n);
+                        }
                     }
-                }
 
-                redisManager.add_notification(redisManager.get_group_owner_UID(GID), "message", notification);
+                    redisManager.add_notification(redisManager.get_group_owner_UID(GID), "message", notification);
 
-                //查询用户是否在线
-                auto it = map.find(redisManager.get_group_owner_UID(GID));
+                    //查询用户是否在线
+                    auto it = map.find(redisManager.get_group_owner_UID(GID));
 
-                //在线
-                if (it != map.end()) {
+                    //在线
+                    if (it != map.end()) {
 
-                    json j2;
-                    j2["type"] = "notice";
-                    j2["message_notification"] = 1;
+                        json j2;
+                        j2["type"] = "notice";
+                        j2["message_notification"] = 1;
 
-                    int connected_sockfd2 = it->second;
+                        int connected_sockfd2 = it->second;
 
-                    pool.add_task([this, connected_sockfd2, j2] {
-                        do_send(connected_sockfd2, j2);
-                    });
-                
+                        pool.add_task([this, connected_sockfd2, j2] {
+                            do_send(connected_sockfd2, j2);
+                        });
+                    
+                    }
                 }
 
                 std::vector<std::string> administrators_UID, members_UID;
@@ -1370,68 +1372,74 @@ void Server::do_recv(int connected_sockfd) {
 
                 for (int i = 0; i < administrators_UID.size(); ++i) {
 
-                    std::vector<std::string> notifications;
-                    redisManager.get_notification(administrators_UID[i], "message", notifications);
+                    if (j["UID"] != administrators_UID[i]) {
+                        std::vector<std::string> notifications;
+                        redisManager.get_notification(administrators_UID[i], "message", notifications);
 
-                    //如果重复就删除以前的消息通知保留最新的
-                    for (const auto& n : notifications) {
-                        if (notification == n) {
-                            redisManager.delete_notification(administrators_UID[i], "message", n);
+                        //如果重复就删除以前的消息通知保留最新的
+                        for (const auto& n : notifications) {
+                            if (notification == n) {
+                                redisManager.delete_notification(administrators_UID[i], "message", n);
+                            }
+                        }
+
+                        redisManager.add_notification(administrators_UID[i], "message", notification);
+
+                        //查询用户是否在线
+                        auto it = map.find(administrators_UID[i]);
+
+                        //在线
+                        if (it != map.end()) {
+
+                            json j2;
+                            j2["type"] = "notice";
+                            j2["message_notification"] = 1;
+
+                            int connected_sockfd2 = it->second;
+
+                            pool.add_task([this, connected_sockfd2, j2] {
+                                do_send(connected_sockfd2, j2);
+                            });
+                        
                         }
                     }
 
-                    redisManager.add_notification(administrators_UID[i], "message", notification);
-
-                    //查询用户是否在线
-                    auto it = map.find(administrators_UID[i]);
-
-                    //在线
-                    if (it != map.end()) {
-
-                        json j2;
-                        j2["type"] = "notice";
-                        j2["message_notification"] = 1;
-
-                        int connected_sockfd2 = it->second;
-
-                        pool.add_task([this, connected_sockfd2, j2] {
-                            do_send(connected_sockfd2, j2);
-                        });
-                    
-                    }
                 }
 
                 for (int i = 0; i < members_UID.size(); ++i) {
-                    
-                    std::vector<std::string> notifications;
-                    redisManager.get_notification(members_UID[i], "message", notifications);
 
-                    //如果重复就删除以前的消息通知保留最新的
-                    for (const auto& n : notifications) {
-                        if (notification == n) {
-                            redisManager.delete_notification(members_UID[i], "message", n);
+                    if (j["UID"] != members_UID[i]) {
+                        std::vector<std::string> notifications;
+                        redisManager.get_notification(members_UID[i], "message", notifications);
+
+                        //如果重复就删除以前的消息通知保留最新的
+                        for (const auto& n : notifications) {
+                            if (notification == n) {
+                                redisManager.delete_notification(members_UID[i], "message", n);
+                            }
+                        }
+
+                        redisManager.add_notification(members_UID[i], "message", notification);
+
+                        //查询用户是否在线
+                        auto it = map.find(members_UID[i]);
+
+                        //在线
+                        if (it != map.end()) {
+
+                            json j2;
+                            j2["type"] = "notice";
+                            j2["message_notification"] = 1;
+
+                            int connected_sockfd2 = it->second;
+
+                            pool.add_task([this, connected_sockfd2, j2] {
+                                do_send(connected_sockfd2, j2);
+                            });
+                        
                         }
                     }
 
-                    redisManager.add_notification(members_UID[i], "message", notification);
-
-                    //查询用户是否在线
-                    auto it = map.find(members_UID[i]);
-
-                    //在线
-                    if (it != map.end()) {
-
-                        json j2;
-                        j2["type"] = "notice";
-                        j2["message_notification"] = 1;
-
-                        int connected_sockfd2 = it->second;
-
-                        pool.add_task([this, connected_sockfd2, j2] {
-                            do_send(connected_sockfd2, j2);
-                        });
-                    
-                    }
                 }
 
                 //存储成功
@@ -1442,7 +1450,11 @@ void Server::do_recv(int connected_sockfd) {
                     do_send(connected_sockfd, j);
                 });
             }
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "handle_new_group_messages") {
+            std::string GID = j["GID"].get<std::string>();
+            std::string notification = "群聊" + redisManager.get_group_name(GID) + "(GID为:" + GID + ")" + "有新消息";
+
+            redisManager.delete_notification(j["UID"], "message", notification);
             
         } else if (j["type"] == "") {
             
