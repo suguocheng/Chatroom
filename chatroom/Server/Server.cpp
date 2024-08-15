@@ -624,7 +624,7 @@ void Server::do_recv(int connected_sockfd) {
                 } else {
                     //存储好友申请通知到redis
                     std::string UID = j["UID"].get<std::string>();
-                    std::string notification = "用户" + UID + "想添加您为好友";
+                    std::string notification = "用户" + redisManager.get_username(UID) + "(UID为" + UID + ")" + "想添加您为好友";
 
                     //存储好友申请通知失败
                     if (redisManager.add_notification(j["search_UID"], "friend_request", notification) == 0) {
@@ -696,7 +696,7 @@ void Server::do_recv(int connected_sockfd) {
             } else {
 
                 std::string request_UID = j["request_UID"].get<std::string>();
-                std::string notification = "用户" + request_UID + "想添加您为好友";
+                std::string notification = "用户" + redisManager.get_username(request_UID) + "(UID为" + request_UID + ")" + "想添加您为好友";
 
                 std::vector<std::string> notifications;
                 redisManager.get_notification(j["UID"], "friend_request", notifications);
@@ -1669,6 +1669,8 @@ void Server::do_recv(int connected_sockfd) {
             pool.add_task([this, connected_sockfd, j] {
                 do_send(connected_sockfd,j);
             });
+
+            usleep(100000);
 
             pool.add_task([this, connected_sockfd, file_name = j["file_name"]] {
                 do_send_file(connected_sockfd, file_name);

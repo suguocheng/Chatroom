@@ -1052,6 +1052,12 @@ void send_group_file(int connecting_sockfd, std::string UID, std::string GID) {
                 waiting_for_input();
                 continue;
             }
+
+            if (S_ISREG(statbuf.st_mode) == 0) {
+                std::cout << "请输入文件的路径而非目录的路径" << std::endl;
+                waiting_for_input();
+                continue;
+            }
             // LogInfo("stat后file_path = {}", file_path);
             // LogInfo("size = {}", statbuf.st_size);
 
@@ -1085,7 +1091,6 @@ void send_group_file(int connecting_sockfd, std::string UID, std::string GID) {
             }
 
             printf("\n开始传送文件< %s >,请勿退出!\n", ln.name);
-            printf("......\n");
 
             off_t offset = 0;
             ssize_t total_bytes_sent = 0;
