@@ -93,7 +93,7 @@ void Client::do_group_request_notice() {
 
 void Client::do_file_notice() {
     while (1) {
-        sem_wait(&group_request_notice_semaphore); // 等待信号量
+        sem_wait(&file_notice_semaphore); // 等待信号量
         std::cout << std::endl << "\033[31m" << "您收到了新文件" << "\033[0m" << std::endl << std::endl;
     }
 }

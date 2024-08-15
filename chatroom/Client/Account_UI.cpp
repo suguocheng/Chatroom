@@ -7,8 +7,8 @@ sem_t semaphore; // 定义信号量
 void main_menu_UI(int connecting_sockfd) {
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
-    signal(SIGQUIT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
+    
 
     //初始化信号量
     sem_init(&semaphore, 0, 0);

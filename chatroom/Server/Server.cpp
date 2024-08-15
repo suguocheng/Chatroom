@@ -170,6 +170,18 @@ void Server::do_recv(int connected_sockfd) {
         //客户端断开
         } else if (received_len == 0) {
             LogInfo("客户端断开连接");
+
+            for (std::string uid : online_UID) {
+                auto it = map.find(uid);
+
+                if (it != map.end()) {
+                    if (it->second == connected_sockfd) {
+                        map.erase(it);
+                        break;
+                    }
+                }
+            }
+
             return;
         }
 
@@ -227,8 +239,10 @@ void Server::do_recv(int connected_sockfd) {
                         //登录成功
                         j["result"] = "登录成功";
                         j["UID"] = redisManager.get_UID(j["username"]);
-
+                        
+                        std::string UID = j["UID"].get<std::string>();
                         //将uid与在线套接字绑定，以确定在线状态
+                        online_UID.push_back(UID);
                         map[j["UID"]] = connected_sockfd;
                         
                         //只要登录就发送粗略的消息通知(检查通知是否存在的方式有问题)
@@ -680,6 +694,30 @@ void Server::do_recv(int connected_sockfd) {
                 });
 
             } else {
+
+                std::string request_UID = j["request_UID"].get<std::string>();
+                std::string notification = "用户" + request_UID + "想添加您为好友";
+
+                std::vector<std::string> notifications;
+                redisManager.get_notification(j["UID"], "friend_request", notifications);
+
+                int judge = 0;
+                //如果重复就说明有这个申请
+                for (const auto& n : notifications) {
+                    if (notification == n) {
+                        judge = 1;
+                    }
+                }
+
+                if (judge == 0) {
+
+                    j["result"] = "该用户没有向您发送好友申请";
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                    continue;
+                }
+
                 if (redisManager.add_friend(j["UID"], j["request_UID"]) == 0) {
                     j["result"] = "添加好友失败";
                     pool.add_task([this, connected_sockfd, j] {
@@ -687,9 +725,6 @@ void Server::do_recv(int connected_sockfd) {
                     });
 
                 } else {
-                    std::string request_UID = j["request_UID"].get<std::string>();
-                    std::string notification = "用户" + request_UID + "想添加您为好友";
-
                     // LogInfo("准备删除通知");
                     redisManager.delete_notification(j["UID"], "friend_request", notification);
 
@@ -1086,6 +1121,30 @@ void Server::do_recv(int connected_sockfd) {
                     });
 
                 } else {
+                    std::string request_UID = j["request_UID"].get<std::string>();
+                    std::string request_GID = j["request_GID"].get<std::string>();
+                    std::string notification = "用户" + request_UID + "想加入群聊" + request_GID;
+
+                    std::vector<std::string> notifications;
+                    redisManager.get_notification(j["UID"], "group_request", notifications);
+
+                    int judge = 0;
+                    //如果相同就说明有这个申请
+                    for (const auto& n : notifications) {
+                        if (notification == n) {
+                            judge = 1;
+                        }
+                    }
+
+                    if (judge == 0) {
+                        j["result"] = "该用户没有向您发送加群申请";
+                        pool.add_task([this, connected_sockfd, j] {
+                            do_send(connected_sockfd,j);
+                        });
+                        continue;
+
+                    }
+
                     if (redisManager.add_group_member(j["request_GID"], j["request_UID"]) == 0) {
                         j["result"] = "加入群组失败";
                         pool.add_task([this, connected_sockfd, j] {
@@ -1093,10 +1152,6 @@ void Server::do_recv(int connected_sockfd) {
                         });
 
                     } else {
-                        std::string request_UID = j["request_UID"].get<std::string>();
-                        std::string request_GID = j["request_GID"].get<std::string>();
-                        std::string notification = "用户" + request_UID + "想加入群聊" + request_GID;
-
                         // LogInfo("准备删除通知");
                         //删除群组申请通知
                         redisManager.delete_notification(redisManager.get_group_owner_UID(j["request_GID"]), "group_request", notification);

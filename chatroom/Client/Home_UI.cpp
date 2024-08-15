@@ -152,10 +152,10 @@ void message_UI(int connecting_sockfd, std::string UID) {
 void recv_file_UI(int connecting_sockfd, std::string UID) {
     int n;
 
-    //取消消息通知
-    notice_map["file_notification"] = 0;
-
     while (1) {
+        //取消消息通知
+        notice_map["file_notification"] = 0;
+
         system("clear");
         std::cout << "接收文件" << std::endl << std::endl;
 

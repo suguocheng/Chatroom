@@ -51,5 +51,6 @@ private:
     RedisManager redisManager;
 
     std::unordered_map<std::string, int> map;
+    std::vector<std::string> online_UID;
 };
 
