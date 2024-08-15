@@ -259,7 +259,7 @@ void recv_friend_file(int connecting_sockfd, std::string UID, std::string friend
         confirmed_as_friend = 0;
 
         json j2;
-        j2["type"] = "recv_friend_file";
+        j2["type"] = "recv_file";
         j2["file_name"] = file_name;
 
         send_json(connecting_sockfd, j2);
@@ -275,7 +275,31 @@ void recv_friend_file(int connecting_sockfd, std::string UID, std::string friend
 }
 
 void recv_group_file(int connecting_sockfd, std::string UID, std::string GID, std::string file_name) {
+    //确认在群组
+    json j;
+    j["type"] = "confirm_in_group";
+    j["UID"] = UID;
+    j["GID"] = GID;
+    
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
 
+    if(confirm_in_group != 0) {
+        confirm_in_group = 0;
+
+        json j2;
+        j2["type"] = "recv_file";
+        j2["file_name"] = file_name;
+
+        send_json(connecting_sockfd, j2);
+        sem_wait(&semaphore); // 等待信号量
+
+        waiting_for_input();
+    } else {
+        system("clear");
+        std::cout << "您不在该群组中！" << std::endl;
+        waiting_for_input();
+    }
 }
 
 void contacts_UI(int connecting_sockfd, std::string UID) {
@@ -749,12 +773,13 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
             std::cout << "2.群组GID" << std::endl; 
             std::cout << "3.群组成员列表" << std::endl;
             std::cout << "4.进入群聊" << std::endl;
-            std::cout << "5.设置管理员" << std::endl;
-            std::cout << "6.移除管理员" << std::endl;
-            std::cout << "7.移除成员" << std::endl;
-            std::cout << "8.退出群组" << std::endl;
-            std::cout << "9.解散群组" << std::endl;
-            std::cout << "10.返回" << std::endl;
+            std::cout << "5.发送文件" << std::endl;
+            std::cout << "6.设置管理员" << std::endl;
+            std::cout << "7.移除管理员" << std::endl;
+            std::cout << "8.移除成员" << std::endl;
+            std::cout << "9.退出群组" << std::endl;
+            std::cout << "10.解散群组" << std::endl;
+            std::cout << "11.返回" << std::endl;
             std::cout << "请输入：";
 
             // 读取用户输入
@@ -796,6 +821,9 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                 group_chat(connecting_sockfd, UID, GID);
 
             } else if (n == 5) {
+                send_group_file(connecting_sockfd, UID, GID);
+
+            } else if (n == 6) {
                 std::string member_UID;
                 std::cout << "请输入要设置成管理员的成员UID(输入0返回):";
                 std::cin >> member_UID;
@@ -815,7 +843,7 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
 
                 waiting_for_input();
 
-            } else if (n == 6) {
+            } else if (n == 7) {
                 std::string member_UID;
                 std::cout << "请输入要移除管理员的成员UID(输入0返回):";
                 std::cin >> member_UID;
@@ -835,7 +863,7 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
 
                 waiting_for_input();
 
-            } else if (n == 7) {
+            } else if (n == 8) {
                 std::string member_UID;
                 std::cout << "请输入要删除的成员UID(输入0返回):";
                 std::cin >> member_UID;
@@ -855,7 +883,7 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
 
                 waiting_for_input();
 
-            } else if (n == 8) {
+            } else if (n == 9) {
                 char choice;
                 while (1) {
                     std::cout << "确认退出该群组吗？(Y/N):";
@@ -879,10 +907,32 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
                         waiting_for_input();
                     }
                 }
-            } else if (n == 9) {
-
-
             } else if (n == 10) {
+                char choice;
+                while (1) {
+                    std::cout << "确认解散该群组吗？(Y/N):";
+                    std::cin >> choice;
+                    if (choice == 'Y' || choice == 'y') {
+                        json j8;
+                        j8["type"] = "dismiss_group";
+                        j8["UID"] = UID;
+                        j8["GID"] = GID;
+
+                        send_json(connecting_sockfd, j8);
+                        sem_wait(&semaphore); // 等待信号量
+
+                        waiting_for_input();
+                        return;
+                    } else if (choice == 'N' || choice == 'n') {
+                        break;
+
+                    } else {
+                        std::cout << "请正确输入选项！" << std::endl;
+                        waiting_for_input();
+                    }
+                }
+
+            } else if (n == 11) {
                 return;
 
             } else {
@@ -957,6 +1007,117 @@ void group_chat(int connecting_sockfd, std::string UID, std::string GID) {
         waiting_for_input();
     }
 
+}
+
+void send_group_file(int connecting_sockfd, std::string UID, std::string GID) {
+    std::string file_name;
+    std::string file_path;
+    char buf[1024];
+    struct stat statbuf;
+    struct len_name ln;
+
+    //确认在群组
+    json j;
+    j["type"] = "confirm_in_group";
+    j["UID"] = UID;
+    j["GID"] = GID;
+    
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    if(confirm_in_group != 0) {
+        confirm_in_group = 0;
+
+        while (1) {
+            system("clear");
+
+            std::cout << "请输入要发送文件的绝对路径(输入0返回):";
+            std::cin >> file_path;
+
+            // LogInfo("file_path = {}", file_path);
+
+            if (file_path == "0") {
+                return;
+            }
+            // LogInfo("判断为0后file_path = {}", file_path);
+
+            if(stat(file_path.c_str(), &statbuf) == -1)
+            {
+                std::cout << "请输入正确的路径名" << std::endl;
+                // std::cerr << "Error getting file status: " << strerror(errno) << std::endl;
+                waiting_for_input();
+                continue;
+            }
+            // LogInfo("stat后file_path = {}", file_path);
+            // LogInfo("size = {}", statbuf.st_size);
+
+            file_name = basename(file_path.c_str());
+
+            // LogInfo("获取文件名后file_path = {}", file_path);
+
+            json j;
+            j["type"] = "send_group_file";
+            j["UID"] = UID;
+            j["GID"] = GID;
+
+            send_json(connecting_sockfd, j);
+            sem_wait(&semaphore); // 等待信号量
+
+            ln.len = statbuf.st_size;
+            // LogInfo("len = {}", ln.len);
+            strcpy(ln.name, file_name.c_str());
+
+            memcpy(buf, &ln, sizeof(ln));
+            write(connecting_sockfd, buf, 1024);
+
+            // LogInfo("打开文件前file_path = {}", file_path);
+
+            int fp = open(file_path.c_str(), O_CREAT|O_RDONLY, S_IRUSR|S_IWUSR);
+            if (fp == -1) {
+                // 打开失败，打印错误信息
+                perror("Error opening file");
+                waiting_for_input();
+                return;
+            }
+
+            printf("\n开始传送文件< %s >,请勿退出!\n", ln.name);
+            printf("......\n");
+
+            off_t offset = 0;
+            ssize_t total_bytes_sent = 0;
+            ssize_t bytes_sent;
+
+            // LogInfo("len2 = {}", ln.len);
+
+            while (total_bytes_sent < ln.len) {
+                bytes_sent = sendfile(connecting_sockfd, fp, &offset, ln.len - total_bytes_sent);
+                if (bytes_sent == -1) {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                        continue;
+                    } else {
+                        perror("sendfile");
+                        break;
+                    }
+                }
+                if (bytes_sent == 0) {
+                    // 可能是连接关闭或没有更多数据可发送
+                    break;
+                }
+                total_bytes_sent += bytes_sent;
+            }
+
+            // sendfile(connecting_sockfd, fp, 0, statbuf.st_size);
+            printf("文件< %s >传送成功!\n\n", ln.name);
+
+            close(fp);
+
+            waiting_for_input();
+        }
+    } else {
+        system("clear");
+        std::cout << "您不在该群组中！" << std::endl;
+        waiting_for_input();
+    }
 }
 
 void add_friends_groups_UI(int connecting_sockfd, std::string UID) {

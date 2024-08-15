@@ -837,7 +837,14 @@ bool RedisManager::delete_administrator(const std::string& GID, const std::strin
         return 0;
     }
 
+    redisReply* reply2 = (redisReply*)redisCommand(redisContext_, "SADD group_members:%s %s", GID.c_str(), member_UID.c_str());
+    if (reply2 == NULL) {
+        std::cerr << "Redis 命令执行失败！" << std::endl;
+        return 0;
+    }
+
     freeReplyObject(reply);
+    freeReplyObject(reply2);
     return 1;
 }
 

@@ -1224,6 +1224,39 @@ void Server::do_recv(int connected_sockfd) {
                 }
             }
             
+        } else if (j["type"] == "dismiss_group") {
+            if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+                redisManager.delete_group(j["GID"]);
+                redisManager.delete_group_member(j["GID"], j["UID"]);
+                
+                std::vector<std::string> administrators_UID, members_UID;
+                redisManager.get_administrators(j["GID"], administrators_UID);
+                redisManager.get_group_members(j["GID"], members_UID);
+
+                for (int i = 0; i < administrators_UID.size(); ++i) {
+                    redisManager.delete_administrator(j["GID"], administrators_UID[i]);
+                    redisManager.delete_group_member(j["GID"], administrators_UID[i]);
+                }
+
+                for (int i = 0; i < members_UID.size(); ++i) {
+                    redisManager.delete_group_member(j["GID"], administrators_UID[i]);
+                }
+
+                j["result"] = "解散成功";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                j["result"] = "您不是群主，没有权限解散群组";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+            }
         } else if (j["type"] == "remove_group_member") {
             if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
                 if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 1) {
@@ -1524,7 +1557,7 @@ void Server::do_recv(int connected_sockfd) {
             epoll_ctl(epfd, EPOLL_CTL_DEL, connected_sockfd, NULL);
 
             pool.add_task([this, fd = connected_sockfd, UID = j["UID"], friend_UID = j["friend_UID"]] {
-                do_recv_file(fd, UID, friend_UID);
+                do_recv_friend_file(fd, UID, friend_UID);
             });
 
             //直接返回，要读取文件了，不再读取json数据
@@ -1548,7 +1581,7 @@ void Server::do_recv(int connected_sockfd) {
             std::string notification = "好友" + redisManager.get_username(friend_UID) + "(UID为:" + friend_UID + ")" + "给你发来了文件 " + file_name;
             redisManager.delete_notification(j["UID"], "file", notification);
 
-        } else if (j["type"] == "recv_friend_file") {
+        } else if (j["type"] == "recv_file") {
             //将数据发送回原客户端
             pool.add_task([this, connected_sockfd, j] {
                 do_send(connected_sockfd,j);
@@ -1559,7 +1592,33 @@ void Server::do_recv(int connected_sockfd) {
             });
 
 
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "send_group_file") {
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd, j);
+            });
+            
+            //设置为阻塞模式
+            int flags = fcntl(connected_sockfd, F_GETFL, 0);
+            if (flags < 0) {
+                std::cerr << "fcntl(F_GETFL) failed: " << strerror(errno) << std::endl;
+                return;
+            }
+            flags &= ~O_NONBLOCK;
+            if (fcntl(connected_sockfd, F_SETFL, flags) < 0) {
+                std::cerr << "fcntl(F_SETFL) failed: " << strerror(errno) << std::endl;
+                return;
+            }
+
+            //取消监视
+            epoll_ctl(epfd, EPOLL_CTL_DEL, connected_sockfd, NULL);
+
+            pool.add_task([this, fd = connected_sockfd, UID = j["UID"], GID = j["GID"]] {
+                do_recv_group_file(fd, UID, GID);
+            });
+
+            //直接返回，要读取文件了，不再读取json数据
+            return;
 
         } else if (j["type"] == "") {
 
@@ -1571,7 +1630,7 @@ void Server::do_recv(int connected_sockfd) {
     }
 }
 
-void Server::do_recv_file(int connected_sockfd, std::string UID, std::string friend_UID) {
+void Server::do_recv_friend_file(int connected_sockfd, std::string UID, std::string friend_UID) {
     //接收文件
     struct len_name ln;
     char lnbuf[1024];
@@ -1638,6 +1697,170 @@ void Server::do_recv_file(int connected_sockfd, std::string UID, std::string fri
         pool.add_task([this, connected_sockfd2, j] {
             do_send(connected_sockfd2, j);
         });
+    }
+
+    //设置套接字为非阻塞模式
+    int flags = fcntl(connected_sockfd, F_GETFL, 0);
+    if (flags == -1) {
+        std::cerr << "fcntl(F_GETFL) failed" << std::endl;
+        return;
+    }
+    if (fcntl(connected_sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::cerr << "fcntl(F_SETFL) failed" << std::endl;
+    }
+    
+    //重新监视
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
+        throw std::runtime_error("Failed to add socket to epoll");
+    }
+}
+
+void Server::do_recv_group_file(int connected_sockfd, std::string UID, std::string GID) {
+    //接收文件
+    struct len_name ln;
+    char lnbuf[1024];
+    char file_path[1024];
+    char buf[1024];
+
+    read(connected_sockfd, lnbuf, 1024);
+    memcpy(&ln, lnbuf, sizeof(ln));
+
+    // LogInfo("len = {}", ln.len);
+
+    sprintf(file_path, "../file_buf/%s", ln.name);
+
+    FILE *fp = fopen(file_path, "wb");
+    if (fp == NULL) {
+        perror("Can't open file");
+        exit(1);
+    }
+
+    ssize_t n;
+    unsigned long sum = 0;
+    while((n = read(connected_sockfd, buf, 1024)) > 0) {
+        fwrite(buf, sizeof(char), n, fp);
+
+        sum += n;
+        // LogInfo("sum = {}", sum);
+        if(sum >= ln.len)	//当接收到足够的长度的时候，就说明文件已读取完毕
+        {
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    LogInfo("接收文件完成");
+
+    //存储消息通知到redis
+    std::string notification = "群聊" + redisManager.get_group_name(GID) + "(GID为:" + GID + ")" + "发来了文件 " + ln.name;
+
+    if (redisManager.get_group_owner_UID(GID) != UID) {
+        std::vector<std::string> notifications;
+        redisManager.get_notification(redisManager.get_group_owner_UID(GID), "file", notifications);
+
+        //如果重复就删除以前的消息通知保留最新的
+        for (const auto& n : notifications) {
+            if (notification == n) {
+                redisManager.delete_notification(redisManager.get_group_owner_UID(GID), "file", n);
+            }
+        }
+
+        redisManager.add_notification(redisManager.get_group_owner_UID(GID), "file", notification);
+
+        //查询用户是否在线
+        auto it = map.find(redisManager.get_group_owner_UID(GID));
+
+        //在线
+        if (it != map.end()) {
+
+            json j2;
+            j2["type"] = "notice";
+            j2["file_notification"] = 1;
+
+            int connected_sockfd2 = it->second;
+
+            pool.add_task([this, connected_sockfd2, j2] {
+                do_send(connected_sockfd2, j2);
+            });
+        
+        }
+    }
+
+    std::vector<std::string> administrators_UID, members_UID;
+    redisManager.get_administrators(GID, administrators_UID);
+    redisManager.get_group_members(GID, members_UID);
+
+    for (int i = 0; i < administrators_UID.size(); ++i) {
+
+        if (UID != administrators_UID[i]) {
+            std::vector<std::string> notifications;
+            redisManager.get_notification(administrators_UID[i], "file", notifications);
+
+            //如果重复就删除以前的消息通知保留最新的
+            for (const auto& n : notifications) {
+                if (notification == n) {
+                    redisManager.delete_notification(administrators_UID[i], "file", n);
+                }
+            }
+
+            redisManager.add_notification(administrators_UID[i], "file", notification);
+
+            //查询用户是否在线
+            auto it = map.find(administrators_UID[i]);
+
+            //在线
+            if (it != map.end()) {
+
+                json j2;
+                j2["type"] = "notice";
+                j2["file_notification"] = 1;
+
+                int connected_sockfd2 = it->second;
+
+                pool.add_task([this, connected_sockfd2, j2] {
+                    do_send(connected_sockfd2, j2);
+                });
+            
+            }
+        }
+
+    }
+
+    for (int i = 0; i < members_UID.size(); ++i) {
+
+        if (UID != members_UID[i]) {
+            std::vector<std::string> notifications;
+            redisManager.get_notification(members_UID[i], "file", notifications);
+
+            //如果重复就删除以前的消息通知保留最新的
+            for (const auto& n : notifications) {
+                if (notification == n) {
+                    redisManager.delete_notification(members_UID[i], "file", n);
+                }
+            }
+
+            redisManager.add_notification(members_UID[i], "file", notification);
+
+            //查询用户是否在线
+            auto it = map.find(members_UID[i]);
+
+            //在线
+            if (it != map.end()) {
+
+                json j2;
+                j2["type"] = "notice";
+                j2["file_notification"] = 1;
+
+                int connected_sockfd2 = it->second;
+
+                pool.add_task([this, connected_sockfd2, j2] {
+                    do_send(connected_sockfd2, j2);
+                });
+            
+            }
+        }
+
     }
 
     //设置套接字为非阻塞模式

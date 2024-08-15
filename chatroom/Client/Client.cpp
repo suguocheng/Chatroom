@@ -285,6 +285,10 @@ void Client::do_recv() {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
             
+        } else if (j["type"] == "dismiss_group") {
+            std::cout << j["result"] << std::endl;
+            sem_post(&semaphore); // 释放信号量
+
         } else if (j["type"] == "remove_group_member") {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
@@ -324,7 +328,7 @@ void Client::do_recv() {
             }
             sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "recv_friend_file") {
+        } else if (j["type"] == "recv_file") {
             //接收文件
             struct len_name ln;
             char lnbuf[1024];
@@ -369,9 +373,13 @@ void Client::do_recv() {
 
             sem_post(&semaphore); // 释放信号量
             
+        } else if (j["type"] == "send_group_file") {
+            sem_post(&semaphore); // 释放信号量
+
         } else if (j["type"] == "") {
             
-
+        } else if (j["type"] == "") {
+            
         } else if (j["type"] == "") {
             
         }
