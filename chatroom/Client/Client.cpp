@@ -1,7 +1,18 @@
 #include "Client.h"
 #include "../log/mars_logger.h"
 
-Client::Client(int port) : pool(5){
+sem_t message_notice_semaphore;
+sem_t friend_request_notice_semaphore;
+sem_t group_request_notice_semaphore;
+sem_t file_notice_semaphore;
+
+Client::Client(int port) : pool(10){
+
+    sem_init(&message_notice_semaphore, 0, 0);
+    sem_init(&friend_request_notice_semaphore, 0, 0);
+    sem_init(&group_request_notice_semaphore, 0, 0);
+    sem_init(&file_notice_semaphore, 0, 0);
+
     //创建套接字
     connecting_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (connecting_sockfd < 0) {
@@ -20,6 +31,22 @@ Client::Client(int port) : pool(5){
     if (connect(connecting_sockfd, (struct sockaddr *)&addr, addr_len) < 0) {
         throw std::runtime_error("Failed to connect to server: " + std::string(strerror(errno)));
     }
+
+    pool.add_task([this] {
+        do_message_notice();
+    });
+
+    pool.add_task([this] {
+        do_friend_request_notice();
+    });
+
+    pool.add_task([this] {
+        do_group_request_notice();
+    });
+
+    pool.add_task([this] {
+        do_file_notice();
+    });
 
     //将接收函数添加到线程池运行
     pool.add_task([this] {
@@ -43,10 +70,33 @@ Client::~Client() {
 }
 
 
-void Client::do_send() {
-    
+void Client::do_message_notice() {
+    while (1) {
+        sem_wait(&message_notice_semaphore); // 等待信号量
+        std::cout << std::endl << "\033[31m" << "您收到了新消息" << "\033[0m" << std::endl << std::endl;
+    }
 }
 
+void Client::do_friend_request_notice() {
+    while (1) {
+        sem_wait(&friend_request_notice_semaphore); // 等待信号量
+        std::cout << std::endl << "\033[31m" << "您收到了新好友申请" << "\033[0m" << std::endl << std::endl;
+    }
+}
+
+void Client::do_group_request_notice() {
+    while (1) {
+        sem_wait(&group_request_notice_semaphore); // 等待信号量
+        std::cout << std::endl << "\033[31m" << "您收到了新加群申请" << "\033[0m" << std::endl << std::endl;
+    }
+}
+
+void Client::do_file_notice() {
+    while (1) {
+        sem_wait(&group_request_notice_semaphore); // 等待信号量
+        std::cout << std::endl << "\033[31m" << "您收到了新文件" << "\033[0m" << std::endl << std::endl;
+    }
+}
 
 void Client::do_recv() {
     struct msghdr msg = {0};
@@ -140,28 +190,31 @@ void Client::do_recv() {
         } else if (j["type"] == "notice") {
             if (j["friend_request_notification"] == 1) {
                 notice_map["friend_request_notification"] = 1;
+                sem_post(&friend_request_notice_semaphore); // 释放信号量
             } else {
                 notice_map["friend_request_notification"] = 0;
             }
 
             if (j["group_request_notification"] == 1) {
                 notice_map["group_request_notification"] = 1;
+                sem_post(&group_request_notice_semaphore); // 释放信号量
             } else {
                 notice_map["group_request_notification"] = 0;
             }
 
             if (j["message_notification"] == 1) {
                 notice_map["message_notification"] = 1;
+                sem_post(&message_notice_semaphore); // 释放信号量
             } else {
                 notice_map["message_notification"] = 0;
             }
 
             if (j["file_notification"] == 1) {
                 notice_map["file_notification"] = 1;
+                sem_post(&file_notice_semaphore); // 释放信号量
             } else {
                 notice_map["file_notification"] = 0;
             }
-            // sem_post(&semaphore); // 释放信号量
 
             // LogInfo("message_notification = {}", (notice_map["message_notification"]));
             
@@ -341,7 +394,6 @@ void Client::do_recv() {
             memcpy(&ln, lnbuf, sizeof(ln));
 
             printf("\n开始接收文件< %s >,请勿退出!\n", ln.name);
-            printf("......\n");
 
             sprintf(file_path, "../file_buf/%s", ln.name);
 
@@ -365,11 +417,12 @@ void Client::do_recv() {
                 {
                     break;
                 }
+                printProgressBar(sum, ln.len);
             }
 
             fclose(fp);
 
-            printf("文件< %s >接收成功!\n\n", ln.name);
+            printf("\n文件< %s >接收成功!\n\n", ln.name);
 
             sem_post(&semaphore); // 释放信号量
             

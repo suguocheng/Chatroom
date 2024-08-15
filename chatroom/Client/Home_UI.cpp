@@ -65,10 +65,9 @@ void home_UI(int connecting_sockfd, std::string UID) {
 void message_UI(int connecting_sockfd, std::string UID) {
     int n;
 
-    //取消消息通知
-    notice_map["message_notification"] = 0;
-
     while (1) {
+         //取消消息通知
+        notice_map["message_notification"] = 0;
         system("clear");
         std::cout << "消息" << std::endl << std::endl;
 
@@ -583,7 +582,7 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
             sem_wait(&semaphore); // 等待信号量
 
             std::cout << std::endl;
-            std::cout << "请输入你要发送的消息(输入0退出):";
+            std::cout << "请输入你要发送的消息(输入0退出,按回车刷新):";
 
             json j4;
             std::string message;
@@ -597,6 +596,8 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
 
             if (message == "0") {
                 return;
+            } else if (message == "") {
+                continue;
             }
 
             send_json(connecting_sockfd, j4);
@@ -684,7 +685,7 @@ void send_friend_file(int connecting_sockfd, std::string UID, std::string friend
             }
 
             printf("\n开始传送文件< %s >,请勿退出!\n", ln.name);
-            printf("......\n");
+            // printf("......\n");
 
             off_t offset = 0;
             ssize_t total_bytes_sent = 0;
@@ -707,10 +708,11 @@ void send_friend_file(int connecting_sockfd, std::string UID, std::string friend
                     break;
                 }
                 total_bytes_sent += bytes_sent;
+                printProgressBar(total_bytes_sent, ln.len);
             }
 
             // sendfile(connecting_sockfd, fp, 0, statbuf.st_size);
-            printf("文件< %s >传送成功!\n\n", ln.name);
+            printf("\n文件< %s >传送成功!\n\n", ln.name);
 
             close(fp);
 
@@ -979,7 +981,7 @@ void group_chat(int connecting_sockfd, std::string UID, std::string GID) {
             sem_wait(&semaphore); // 等待信号量
 
             std::cout << std::endl;
-            std::cout << "请输入你要发送的消息(输入0退出):";
+            std::cout << "请输入你要发送的消息(输入0退出,按回车刷新):";
 
             json j4;
             std::string message;
@@ -993,6 +995,8 @@ void group_chat(int connecting_sockfd, std::string UID, std::string GID) {
 
             if (message == "0") {
                 return;
+            } else if (message == "") {
+                continue;
             }
 
             send_json(connecting_sockfd, j4);
@@ -1107,7 +1111,7 @@ void send_group_file(int connecting_sockfd, std::string UID, std::string GID) {
             }
 
             // sendfile(connecting_sockfd, fp, 0, statbuf.st_size);
-            printf("文件< %s >传送成功!\n\n", ln.name);
+            printf("\n文件< %s >传送成功!\n\n", ln.name);
 
             close(fp);
 
@@ -1475,4 +1479,17 @@ void waiting_for_input() {
     std::cout << "按回车键继续..." << std::endl;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cin.get(); // 等待用户输入
+}
+
+void printProgressBar(off_t progress, off_t total, int width) {
+    float ratio = (float)progress / total;
+    int pos = width * ratio;
+
+    std::cout << "[";
+    for (int i = 0; i < width; ++i) {
+        if (i < pos) std::cout << ">";
+        else std::cout << "-";
+    }
+    std::cout << "] " << int(ratio * 100) << "%\r";
+    std::cout.flush();
 }

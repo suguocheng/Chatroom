@@ -8,6 +8,8 @@
 #include <nlohmann/json.hpp> //JSON库
 #include <semaphore.h> //信号量库
 #include <termios.h> //回显库
+#include <csignal>
+#include <cstring>
 
 using json = nlohmann::json;
 

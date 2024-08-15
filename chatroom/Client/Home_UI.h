@@ -7,6 +7,7 @@
 #include <sys/sendfile.h> //发送文件
 #include <sys/stat.h> //查看路径状态
 #include <fcntl.h> //操作文件
+#include <arpa/inet.h> //struct sockaddr_in
 
 extern std::unordered_map<std::string, int> notice_map;
 extern bool confirmed_as_friend;
@@ -42,4 +43,6 @@ bool user_UI(int connecting_sockfd, std::string UID);
 void information_UI(int connecting_sockfd, std::string UID);
 void username_UI(int connecting_sockfd, std::string UID);
 void security_question_UI(int connecting_sockfd, std::string UID);
+
 void waiting_for_input();
+void printProgressBar(off_t progress, off_t total, int width = 50);

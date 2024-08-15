@@ -20,7 +20,10 @@ public:
     Client(int port);
     ~Client();
 
-    void do_send();
+    void do_message_notice();
+    void do_friend_request_notice();
+    void do_group_request_notice();
+    void do_file_notice();
     void do_recv();
     void do_recv_file();
     void heartbeat();

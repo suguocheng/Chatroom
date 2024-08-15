@@ -1574,7 +1574,6 @@ void Server::do_recv(int connected_sockfd) {
             });
 
         } else if (j["type"] == "handle_new_friend_files") {
-
             std::string friend_UID = j["friend_UID"].get<std::string>();
             std::string file_name = j["file_name"].get<std::string>();
             
@@ -1620,7 +1619,12 @@ void Server::do_recv(int connected_sockfd) {
             //直接返回，要读取文件了，不再读取json数据
             return;
 
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "handle_new_group_files") {
+            std::string GID = j["GID"].get<std::string>();
+            std::string file_name = j["file_name"].get<std::string>();
+            
+            std::string notification = "群聊" + redisManager.get_group_name(GID) + "(GID为:" + GID + ")" + "发来了文件 " + file_name;
+            redisManager.delete_notification(j["UID"], "file", notification);
 
         } else if (j["type"] == "") {
 

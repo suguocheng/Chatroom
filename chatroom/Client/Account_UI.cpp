@@ -5,6 +5,11 @@ std::string current_UID = "";
 sem_t semaphore; // 定义信号量
 
 void main_menu_UI(int connecting_sockfd) {
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTERM, SIG_IGN);
+    signal(SIGQUIT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+
     //初始化信号量
     sem_init(&semaphore, 0, 0);
 
@@ -251,4 +256,3 @@ void log_out_UI(int connecting_sockfd, std::string UID) {
     sem_wait(&semaphore); // 等待信号量
     waiting_for_input();
 }
-
