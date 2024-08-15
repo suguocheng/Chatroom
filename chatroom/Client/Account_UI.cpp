@@ -109,11 +109,12 @@ void sign_up_UI(int connecting_sockfd) {
     j["password"] = password;
 
     std::cout << "请输入你的密保问题：";
-    std::cin >> security_question;
+    std::cin.ignore();
+    std::getline(std::cin, security_question);
     j["security_question"] = security_question;
 
     std::cout << "请输入你的密保答案：";
-    std::cin >> security_answer;
+    std::getline(std::cin, security_answer);
     j["security_answer"] = security_answer;
 
     send_json(connecting_sockfd, j);
