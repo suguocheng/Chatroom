@@ -1294,7 +1294,7 @@ void Server::do_recv(int connected_sockfd) {
                 }
 
                 for (int i = 0; i < members_UID.size(); ++i) {
-                    redisManager.delete_group_member(j["GID"], administrators_UID[i]);
+                    redisManager.delete_group_member(j["GID"], members_UID[i]);
                 }
 
                 j["result"] = "解散成功";
@@ -1314,12 +1314,20 @@ void Server::do_recv(int connected_sockfd) {
             }
         } else if (j["type"] == "remove_group_member") {
             if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
-                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 1) {
+                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == (bool)1) {
 
                     redisManager.delete_administrator(j["GID"], j["member_UID"]);
                     redisManager.delete_group_member(j["GID"], j["member_UID"]);
 
                     j["result"] = "移除成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else if (j["member_UID"] == j["UID"]) {
+                    j["result"] = "群主不能移除自己";
 
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
@@ -1368,14 +1376,34 @@ void Server::do_recv(int connected_sockfd) {
             }
         } else if (j["type"] == "set_up_administrator") {
             if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
-                redisManager.add_administrator(j["GID"], j["member_UID"]);
 
-                j["result"] = "设置成功";
+                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 0) {
+                    redisManager.add_administrator(j["GID"], j["member_UID"]);
 
-                //将数据发送回原客户端
-                pool.add_task([this, connected_sockfd, j] {
-                    do_send(connected_sockfd,j);
-                });
+                    j["result"] = "设置成功";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else if (j["member_UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+
+                    j["result"] = "您已是群主，不能被设为管理员";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else {
+                    j["result"] = "该成员已是管理员";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+                }
 
             } else {
                 j["result"] = "您没有权限设置管理员";
@@ -1388,7 +1416,8 @@ void Server::do_recv(int connected_sockfd) {
             }
         } else if (j["type"] == "remove_administrator") {
             if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
-                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 1) {
+
+                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == (bool)1) {
 
                     redisManager.delete_administrator(j["GID"], j["member_UID"]);
                     redisManager.add_group_member(j["GID"], j["member_UID"]);

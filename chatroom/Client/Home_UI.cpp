@@ -867,7 +867,7 @@ void group_details_UI(int connecting_sockfd, std::string UID, std::string GID) {
 
             } else if (n == 8) {
                 std::string member_UID;
-                std::cout << "请输入要删除的成员UID(输入0返回):";
+                std::cout << "请输入要移除的成员UID(输入0返回):";
                 std::cin >> member_UID;
 
                 if (member_UID == "0") {
@@ -1108,6 +1108,7 @@ void send_group_file(int connecting_sockfd, std::string UID, std::string GID) {
                     break;
                 }
                 total_bytes_sent += bytes_sent;
+                printProgressBar(total_bytes_sent, ln.len);
             }
 
             // sendfile(connecting_sockfd, fp, 0, statbuf.st_size);

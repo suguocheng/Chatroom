@@ -121,7 +121,7 @@ std::string RedisManager::get_UID(const std::string& username) {
     }
     
     if (reply->type != REDIS_REPLY_STRING) {
-        std::cout << "用户名不存在！" << std::endl;
+        std::cout << "用户名不存在" << std::endl;
         return "";
     } else {
         UID = reply->str;
@@ -143,7 +143,7 @@ std::string RedisManager::get_username(const std::string& UID) {
     }
 
     if (reply->type != REDIS_REPLY_STRING) {
-        std::cout << "用户不存在！" << std::endl;
+        std::cout << "用户不存在" << std::endl;
         return "";
 
     } else {
@@ -165,7 +165,7 @@ std::string RedisManager::get_password(const std::string& username) {
     }
 
     if (reply->type != REDIS_REPLY_STRING) {
-        std::cout << "用户名不存在！" << std::endl;
+        std::cout << "用户名不存在" << std::endl;
         return "";
 
     } else {
@@ -187,7 +187,7 @@ std::string RedisManager::get_security_question(const std::string& username) {
     }
 
     if (reply->type != REDIS_REPLY_STRING) {
-        std::cout << "用户名不存在！" << std::endl;
+        std::cout << "用户名不存在" << std::endl;
         return "";
 
     } else {
@@ -209,7 +209,7 @@ std::string RedisManager::get_security_answer(const std::string& username) {
     }
 
     if (reply->type != REDIS_REPLY_STRING) {
-        std::cout << "用户名不存在！" << std::endl;
+        std::cout << "用户名不存在" << std::endl;
         return "";
 
     } else {
@@ -804,7 +804,7 @@ bool RedisManager::check_administrator(const std::string& GID, const std::string
     }
 
     freeReplyObject(reply);
-    return 1;
+    return 0;
 }
 
 bool RedisManager::get_administrators(const std::string& GID, std::vector<std::string>& administrators_UID) {

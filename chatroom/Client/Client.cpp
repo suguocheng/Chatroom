@@ -316,7 +316,7 @@ void Client::do_recv() {
             sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "get_group_name") {
-            std::cout << j["result"] << "的群聊" << std::endl;
+            std::cout << "群聊" << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "view_member_list") {
