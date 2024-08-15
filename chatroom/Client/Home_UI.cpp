@@ -3,6 +3,7 @@
 
 std::unordered_map<std::string, int> notice_map;
 bool confirmed_as_friend = 0;
+bool confirmed_as_block_friend = 1;
 bool confirm_in_group = 0;
 
 void home_UI(int connecting_sockfd, std::string UID) {
@@ -15,19 +16,24 @@ void home_UI(int connecting_sockfd, std::string UID) {
         if(notice_map["message_notification"] == 1) {
             std::cout << "(有新消息)" << std::endl;
         } else {
-            std::cout << "\n";
+            std::cout << std::endl;
         }
-        std::cout << "2.通讯录";
 
-        // LogInfo("friend_request_notification = {}", (notice_map["friend_request_notification"]));
+        std::cout << "2.接收文件";
+        if(notice_map["file_notification"] == 1) {
+            std::cout << "(有新文件)" << std::endl;
+        } else {
+            std::cout << std::endl;
+        }
 
+        std::cout << "3.通讯录";
         //这里加个通知
         if(notice_map["friend_request_notification"] == 1 || notice_map["group_request_notification"] == 1) {
             std::cout << "(有新申请)" << std::endl;
         } else {
-            std::cout << "\n";
+            std::cout << std::endl;
         }
-        std::cout << "3.个人中心" << std::endl;
+        std::cout << "4.个人中心" << std::endl;
         std::cout << "请输入：";
 
         // 读取用户输入
@@ -41,8 +47,10 @@ void home_UI(int connecting_sockfd, std::string UID) {
         if (n == 1) {
             message_UI(connecting_sockfd, UID);
         } else if (n == 2) {
-            contacts_UI(connecting_sockfd, UID);
+            recv_file_UI(connecting_sockfd, UID);
         } else if (n == 3) {
+            contacts_UI(connecting_sockfd, UID);
+        } else if (n == 4) {
             if (user_UI(connecting_sockfd, UID) == 1) {
                 return;
             }
@@ -129,6 +137,7 @@ void message_UI(int connecting_sockfd, std::string UID) {
             send_json(connecting_sockfd, j2);
 
             //进入群聊界面时，不输入东西退出就会删通知，输入了退出就不删了，难办
+            //解决了，是因为群聊给自己也发通知了
             
             group_chat(connecting_sockfd, UID, GID);
 
@@ -139,6 +148,134 @@ void message_UI(int connecting_sockfd, std::string UID) {
             waiting_for_input();
         }
     }
+}
+
+void recv_file_UI(int connecting_sockfd, std::string UID) {
+    int n;
+
+    //取消消息通知
+    notice_map["file_notification"] = 0;
+
+    while (1) {
+        system("clear");
+        std::cout << "接收文件" << std::endl << std::endl;
+
+        json j;
+        j["type"] = "view_file";
+        j["UID"] = UID;
+
+        send_json(connecting_sockfd, j);
+        sem_wait(&semaphore); // 等待信号量
+
+        std::cout << std::endl;
+        std::cout << "输入1接收好友文件,输入2接收群组文件(输入0返回):";
+
+        if (!(std::cin >> n)) {
+            std::cin.clear(); // 清除错误标志
+            std::cout << "无效的输入，请输入一个数字！" << std::endl;
+            waiting_for_input();
+            continue; // 重新显示菜单
+        }
+
+        if (n == 1) {
+            json j2;
+            j2["type"] = "handle_new_friend_files";
+            j2["UID"] = UID;
+
+            std::string friend_UID, file_name;
+
+            std::cout << "请输入你想要接收文件的好友的UID(输入0返回):";
+            std::cin >> friend_UID;
+
+            j2["friend_UID"] = friend_UID;
+
+            if (friend_UID == "0") {
+                return;
+            }
+
+            std::cout << "请输入你想要接收的文件名(输入0返回):";
+            std::cin >> file_name;
+
+            j2["file_name"] = file_name;
+
+            if (file_name == "0") {
+                return;
+            }
+
+            send_json(connecting_sockfd, j2);
+            // LogInfo("信号量未阻塞");
+
+            recv_friend_file(connecting_sockfd, UID, friend_UID, file_name);
+
+        } else if (n == 2) {
+            json j2;
+            j2["type"] = "handle_new_group_files";
+            j2["UID"] = UID;
+
+            std::string GID, file_name;
+
+            std::cout << "请输入你想要接收文件的群聊的GID(输入0返回):";
+            std::cin >> GID;
+
+            j2["GID"] = GID;
+
+            if (GID == "0") {
+                return;
+            }
+
+            std::cout << "请输入你想要接收的文件名(输入0返回):";
+            std::cin >> file_name;
+
+            j2["file_name"] = file_name;
+
+            if (GID == "0") {
+                return;
+            }
+
+            send_json(connecting_sockfd, j2);
+
+            recv_group_file(connecting_sockfd, UID, GID, file_name);
+
+        } else if (n == 0) {
+            return;
+        } else {
+            std::cout << "请正确输入选项！" << std::endl;
+            waiting_for_input();
+        }
+    }
+}
+
+void recv_friend_file(int connecting_sockfd, std::string UID, std::string friend_UID, std::string file_name) {
+    //判断是不是好友
+    json j;
+    j["type"] = "confirmed_as_friend";
+    j["UID"] = UID;
+    j["friend_UID"] = friend_UID;
+    
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    if (confirmed_as_friend != 0) {
+        confirmed_as_friend = 0;
+
+        json j2;
+        j2["type"] = "recv_friend_file";
+        j2["file_name"] = file_name;
+
+        send_json(connecting_sockfd, j2);
+        sem_wait(&semaphore); // 等待信号量
+
+        waiting_for_input();
+
+    } else {
+        system("clear");
+        std::cout << "该用户不是你的好友！" << std::endl;
+        waiting_for_input();
+    }
+}
+
+void recv_group_file(int connecting_sockfd, std::string UID, std::string GID, std::string file_name) {
+
 }
 
 void contacts_UI(int connecting_sockfd, std::string UID) {
@@ -253,10 +390,11 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
             std::cout << "2.好友UID" << std::endl; 
             std::cout << "3.好友在线状态" << std::endl;
             std::cout << "4.私聊好友" << std::endl;
-            std::cout << "5.屏蔽好友" << std::endl;
-            std::cout << "6.解除屏蔽" << std::endl;
-            std::cout << "7.删除好友" << std::endl;
-            std::cout << "8.返回" << std::endl;
+            std::cout << "5.发送文件" << std::endl;
+            std::cout << "6.屏蔽好友" << std::endl;
+            std::cout << "7.解除屏蔽" << std::endl;
+            std::cout << "8.删除好友" << std::endl;
+            std::cout << "9.返回" << std::endl;
             std::cout << "请输入：";
 
             // 读取用户输入
@@ -298,6 +436,9 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
                 private_chat(connecting_sockfd, UID, friend_UID);
 
             } else if (n == 5) {
+                send_friend_file(connecting_sockfd, UID, friend_UID);
+
+            } else if (n == 6) {
                 char choice;
                 while (1) {
                     std::cout << "确认屏蔽该好友吗？(Y/N):";
@@ -321,7 +462,7 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
                     }
                 }
 
-            } else if (n == 6) {
+            } else if (n == 7) {
                 char choice;
                 while (1) {
                     std::cout << "确认解除屏蔽吗？(Y/N):";
@@ -345,7 +486,7 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
                     }
                 }
 
-            } else if (n == 7) {
+            } else if (n == 8) {
                 char choice;
                 while (1) {
                     std::cout << "确认删除该好友吗？(Y/N):";
@@ -369,7 +510,7 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
                     }
                 }
 
-            } else if (n == 8) {
+            } else if (n == 9) {
                 return;
 
             } else {
@@ -377,6 +518,7 @@ void friend_details_UI(int connecting_sockfd, std::string UID, std::string frien
                 waiting_for_input();
             }
         }
+
     } else {
         system("clear");
         std::cout << "该用户不是你的好友！" << std::endl;
@@ -399,7 +541,6 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
         std::cin.ignore();
         while (1) {
             system("clear");
-            std::cout << "与";
             json j2;
             j2["type"] = "get_username";
             j2["UID"] = friend_UID;
@@ -407,7 +548,7 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
             send_json(connecting_sockfd, j2);
             sem_wait(&semaphore); // 等待信号量
 
-            std::cout << "私聊" << std::endl << std::endl;
+            std::cout << std::endl;
 
             json j3;
             j3["type"] = "get_chat_messages";
@@ -447,6 +588,119 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
     }
 
 }
+
+void send_friend_file(int connecting_sockfd, std::string UID, std::string friend_UID) {
+
+    std::string file_name;
+    std::string file_path;
+    char buf[1024];
+    struct stat statbuf;
+    struct len_name ln;
+
+    //判断有没有被屏蔽
+    json j;
+    j["type"] = "confirmed_as_block_friend";
+    j["UID"] = UID;
+    j["friend_UID"] = friend_UID;
+    
+    send_json(connecting_sockfd, j);
+    sem_wait(&semaphore); // 等待信号量
+
+    if (confirmed_as_block_friend == 0) {
+        while (1) {
+            system("clear");
+
+            std::cout << "请输入要发送文件的绝对路径(输入0返回):";
+            std::cin >> file_path;
+
+            // LogInfo("file_path = {}", file_path);
+
+            if (file_path == "0") {
+                return;
+            }
+            // LogInfo("判断为0后file_path = {}", file_path);
+
+            if(stat(file_path.c_str(), &statbuf) == -1)
+            {
+                std::cout << "请输入正确的路径名" << std::endl;
+                // std::cerr << "Error getting file status: " << strerror(errno) << std::endl;
+                waiting_for_input();
+                continue;
+            }
+            // LogInfo("stat后file_path = {}", file_path);
+            // LogInfo("size = {}", statbuf.st_size);
+
+            file_name = basename(file_path.c_str());
+
+            // LogInfo("获取文件名后file_path = {}", file_path);
+
+            json j;
+            j["type"] = "send_friend_file";
+            j["UID"] = UID;
+            j["friend_UID"] = friend_UID;
+
+            send_json(connecting_sockfd, j);
+            sem_wait(&semaphore); // 等待信号量
+
+            ln.len = statbuf.st_size;
+            // LogInfo("len = {}", ln.len);
+            strcpy(ln.name, file_name.c_str());
+
+            memcpy(buf, &ln, sizeof(ln));
+            write(connecting_sockfd, buf, 1024);
+
+            // LogInfo("打开文件前file_path = {}", file_path);
+
+            int fp = open(file_path.c_str(), O_CREAT|O_RDONLY, S_IRUSR|S_IWUSR);
+            if (fp == -1) {
+                // 打开失败，打印错误信息
+                perror("Error opening file");
+                waiting_for_input();
+                return;
+            }
+
+            printf("\n开始传送文件< %s >,请勿退出!\n", ln.name);
+            printf("......\n");
+
+            off_t offset = 0;
+            ssize_t total_bytes_sent = 0;
+            ssize_t bytes_sent;
+
+            // LogInfo("len2 = {}", ln.len);
+
+            while (total_bytes_sent < ln.len) {
+                bytes_sent = sendfile(connecting_sockfd, fp, &offset, ln.len - total_bytes_sent);
+                if (bytes_sent == -1) {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                        continue;
+                    } else {
+                        perror("sendfile");
+                        break;
+                    }
+                }
+                if (bytes_sent == 0) {
+                    // 可能是连接关闭或没有更多数据可发送
+                    break;
+                }
+                total_bytes_sent += bytes_sent;
+            }
+
+            // sendfile(connecting_sockfd, fp, 0, statbuf.st_size);
+            printf("文件< %s >传送成功!\n\n", ln.name);
+
+            close(fp);
+
+            waiting_for_input();
+        }
+    } else {
+        confirmed_as_block_friend = 0;
+        system("clear");
+        std::cout << "该好友屏蔽了你！" << std::endl;
+        waiting_for_input();
+    }
+
+}
+
 
 void groups_UI(int connecting_sockfd, std::string UID) {
     std::string GID;

@@ -22,6 +22,7 @@ public:
 
     void do_send();
     void do_recv();
+    void do_recv_file();
     void heartbeat();
     
 private:

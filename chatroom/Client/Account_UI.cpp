@@ -64,9 +64,24 @@ void log_in_UI(int connecting_sockfd) {
     std::cin >> username;
     j["username"] = username;
 
+    struct termios oldt, newt;
+
+    // 获取当前终端设置
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+
+    // 关闭回显
+    newt.c_lflag &= ~(ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
     std::cout << "请输入你的密码：";
     std::cin >> password;
     j["password"] = password;
+
+    std::cout << std::endl;
+
+    // 恢复终端设置
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
     send_json(connecting_sockfd, j);
     sem_wait(&semaphore); // 等待信号量

@@ -7,6 +7,7 @@
 #include <unistd.h> //文件操作
 #include <nlohmann/json.hpp> //JSON库
 #include <semaphore.h> //信号量库
+#include <termios.h> //回显库
 
 using json = nlohmann::json;
 

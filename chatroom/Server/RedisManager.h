@@ -43,6 +43,8 @@ public:
     bool add_private_chat_message(const std::string& UID, const std::string& friend_UID, const std::string& message);
     bool get_private_chat_messages(const std::string& UID, const std::string& friend_UID, std::vector<std::string>& messages);
 
+    bool add_private_file();
+
     bool add_group(const std::string& group_name, const std::string& group_owner_UID);
     std::string get_group_name(const std::string& GID);
     std::string get_group_owner_UID(const std::string& GID);
@@ -62,6 +64,8 @@ public:
 
     bool add_group_chat_message(const std::string& GID, const std::string& member_UID, const std::string& message);
     bool get_group_chat_messages(const std::string& GID, std::vector<std::string>& messages);
+
+    
 
 private:
     redisContext* redisContext_;

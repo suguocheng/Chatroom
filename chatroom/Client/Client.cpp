@@ -129,7 +129,7 @@ void Client::do_recv() {
             sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "get_username") {
-            std::cout << j["username"] << std::endl;
+            std::cout << "用户:" << j["username"] << std::endl;
             sem_post(&semaphore); // 释放信号量
 
         } else if (j["type"] == "get_security_question") {
@@ -154,6 +154,12 @@ void Client::do_recv() {
                 notice_map["message_notification"] = 1;
             } else {
                 notice_map["message_notification"] = 0;
+            }
+
+            if (j["file_notification"] == 1) {
+                notice_map["file_notification"] = 1;
+            } else {
+                notice_map["file_notification"] = 0;
             }
             // sem_post(&semaphore); // 释放信号量
 
@@ -301,16 +307,71 @@ void Client::do_recv() {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "send_friend_file") {
+            sem_post(&semaphore); // 释放信号量
+
+        } else if (j["type"] == "confirmed_as_block_friend") {
+            if (j["result"] == "该好友已将您屏蔽") {
+                confirmed_as_block_friend = 1;
+            } else {
+                confirmed_as_block_friend = 0;
+            }
+            sem_post(&semaphore); // 释放信号量
+
+        } else if (j["type"] == "view_file") {
+            for (const auto& file : j["files"]) {
+                std::cout << file << std::endl;
+            }
+            sem_post(&semaphore); // 释放信号量
+            
+        } else if (j["type"] == "recv_friend_file") {
+            //接收文件
+            struct len_name ln;
+            char lnbuf[1024];
+            char file_path[1024];
+            char buf[1024];
+
+            // LogInfo("准备读取文件名和长度");
+
+            read(connecting_sockfd, lnbuf, 1024);
+            memcpy(&ln, lnbuf, sizeof(ln));
+
+            printf("\n开始接收文件< %s >,请勿退出!\n", ln.name);
+            printf("......\n");
+
+            sprintf(file_path, "../file_buf/%s", ln.name);
+
+            FILE *fp = fopen(file_path, "wb");
+            if (fp == NULL) {
+                perror("Can't open file");
+                exit(1);
+            }
+
+            // LogInfo("len = {}", ln.len);
+
+            ssize_t n;
+            unsigned long sum = 0;
+            while((n = read(connecting_sockfd, buf, 1024)) > 0) {//返回值为0或小于0
+                // LogInfo("n = {}", n);
+                fwrite(buf, sizeof(char), n, fp);
+                
+                sum += n;
+                // LogInfo("sum = {}", sum);
+                if(sum >= ln.len)	//当接收到足够的长度的时候，就说明文件已读取完毕
+                {
+                    break;
+                }
+            }
+
+            fclose(fp);
+
+            printf("文件< %s >接收成功!\n\n", ln.name);
+
+            sem_post(&semaphore); // 释放信号量
             
         } else if (j["type"] == "") {
             
-        } else if (j["type"] == "") {
-            
-        } else if (j["type"] == "") {
-            
-        } else if (j["type"] == "") {
-            
+
         } else if (j["type"] == "") {
             
         }
@@ -332,6 +393,40 @@ void Client::do_recv() {
     //     std::cerr << "Read error: " << strerror(errno) << std::endl;
     //     close(connecting_sockfd);
     // }
+}
+
+void Client::do_recv_file() {
+    struct len_name ln;
+    char lnbuf[1024];
+    char file_path[1024];
+    char buf[1024];
+
+    read(connecting_sockfd, lnbuf, 1024);
+    memcpy(&ln, lnbuf, sizeof(ln));
+
+    sprintf(file_path, "../file_buf/%s", ln.name);
+
+    FILE *fp = fopen(file_path, "wb");
+    if (fp == NULL) {
+        perror("Can't open file");
+        exit(1);
+    }
+
+    ssize_t n;
+    unsigned int sum = 0;
+    while((n = read(connecting_sockfd, buf, 1024)) > 0) {
+        // LogInfo("n = ", n);
+        fwrite(buf, sizeof(char), n, fp);
+        sum += n;
+        // LogInfo("sum = ", sum);
+        if(sum >= ln.len)	//当接收到足够的长度的时候，就说明文件已读取完毕
+        {
+            break;
+        }
+    }
+
+    fclose(fp);
+    sem_post(&semaphore); // 释放信号量
 }
 
 

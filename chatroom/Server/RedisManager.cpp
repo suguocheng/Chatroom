@@ -322,6 +322,8 @@ bool RedisManager::add_notification(const std::string& UID, const std::string& n
         key = "group_request_notifications:" + UID;
     } else if (notification_type == "message") {
         key = "message_notifications:" + UID;
+    } else if (notification_type == "file") {
+        key = "file_notifications:" + UID;
     } else {
         std::cerr << "Unknown notification type" << std::endl;
         return 0;
@@ -349,6 +351,8 @@ bool RedisManager::get_notification(const std::string& UID, const std::string& n
         key = "group_request_notifications:" + UID;
     } else if (notification_type == "message") {
         key = "message_notifications:" + UID;
+    } else if (notification_type == "file") {
+        key = "file_notifications:" + UID;
     } else {
         std::cerr << "Unknown notification type" << std::endl;
         return 0;
@@ -390,6 +394,8 @@ bool RedisManager::delete_notification(const std::string& UID, const std::string
         key = "group_request_notifications:" + UID;
     } else if (notification_type == "message") {
         key = "message_notifications:" + UID;
+    } else if (notification_type == "file") {
+        key = "file_notifications:" + UID;
     } else {
         std::cerr << "Unknown notification type" << std::endl;
         return 0;

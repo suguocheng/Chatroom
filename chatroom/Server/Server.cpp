@@ -28,7 +28,7 @@ Server::Server(int port) : events(10), pool(20) {
 
     //绑定地址
     if (bind(listening_sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        LogFatal("bind失败了 苏国诚快去设置socket reuse 唉我靠 我真是服了 逆天了孩子");
+        LogFatal("bind失败了 快去设置socket reuse");
     }
 
     //监听连接
@@ -56,7 +56,6 @@ Server::Server(int port) : events(10), pool(20) {
     }
     
     //注册套接字到epoll（ET 模式），用于描述希望epoll监视的事件
-    struct epoll_event event;
     event.events = EPOLLIN | EPOLLET; // 读事件以及边缘触发模式
     event.data.fd = listening_sockfd;
 
@@ -69,7 +68,7 @@ Server::Server(int port) : events(10), pool(20) {
         //等待事件并处理，将事件添加到事件数组中
         int num_events = epoll_wait(epfd, events.data(), events.size(), -1);
         if (num_events < 0) {
-            std::cerr << "connect_epoll_wait failed" << std::endl;
+            std::cerr << "epoll_wait failed" << std::endl;
             continue;
         }
 
@@ -87,29 +86,38 @@ Server::Server(int port) : events(10), pool(20) {
                 LogInfo("成功连接到客户端!");
                 // LogInfo("connected_socked = {}", connected_sockfd);
 
+                //设置套接字为非阻塞模式
+                int flags = fcntl(connected_sockfd, F_GETFL, 0);
+                if (flags == -1) {
+                    std::cerr << "fcntl(F_GETFL) failed" << std::endl;
+                    return;
+                }
+                if (fcntl(connected_sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+                    std::cerr << "fcntl(F_SETFL) failed" << std::endl;
+                }
+
                 //注册套接字到epoll（ET 模式），用于描述希望epoll监视的事件
-                struct epoll_event event;
-                event.events = EPOLLIN | EPOLLET; // 读事件以及边缘触发模式
-                event.data.fd = connected_sockfd;
+                event2.events = EPOLLIN | EPOLLET; // 读事件以及边缘触发模式
+                event2.data.fd = connected_sockfd;
 
                 //监视事件
-                if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event) < 0) {
+                if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
                     throw std::runtime_error("Failed to add socket to epoll");
                 }
 
                 // connected_sockets.push_back(connected_sockfd);
 
-            } else if(events[i].events & EPOLLIN) {
+            } else if (events[i].events & EPOLLIN) {
 
                 //如果监控到读事件就将接收函数添加到线程池运行
                 pool.add_task([this, fd = events[i].data.fd] {
                     // LogTrace("something read happened");
                     do_recv(fd);
                 });
-
-            } else if(events[i].events & EPOLLOUT) {
                 
-            } else if(events[i].events & EPOLLERR) {
+            } else if (events[i].events & EPOLLOUT) {
+                
+            } else if (events[i].events & EPOLLERR) {
 
             }
         }
@@ -147,16 +155,25 @@ void Server::do_recv(int connected_sockfd) {
         //接收数据
         ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
         if (received_len < 0) {
-            perror("recvmsg");
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // 当前没有数据可读，稍后重试
+                return;
+            } else if (errno == EINTR) {
+                // 被信号中断，重新尝试
+                return;
+            } else {
+                // 处理其他错误
+                perror("recvmsg");
+                return;
+            }
+
+        //客户端断开
+        } else if (received_len == 0) {
+            LogInfo("客户端断开连接");
             return;
         }
 
         buf[received_len] = '\0'; // 确保字符串结束符
-        
-        //如果没有读取到数据，return继续等待下一次读取
-        if (received_len == 0 || buf[0] == '\0') {
-            return; 
-        }
 
         // LogInfo("buf: {}", buf);
 
@@ -240,6 +257,14 @@ void Server::do_recv(int connected_sockfd) {
                             j2["message_notification"] = 0;
                         } else {
                             j2["message_notification"] = 1;
+                        }
+
+                        notifications.clear();
+                        redisManager.get_notification(j["UID"], "file", notifications);
+                        if (notifications.empty()) {
+                            j2["file_notification"] = 0;
+                        } else {
+                            j2["file_notification"] = 1;
                         }
 
                         // LogInfo("message_notification = {}", (j2["message_notification"]));
@@ -1456,16 +1481,180 @@ void Server::do_recv(int connected_sockfd) {
 
             redisManager.delete_notification(j["UID"], "message", notification);
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "confirmed_as_block_friend") {
+            //已被屏蔽
+            if (redisManager.check_block_friend(j["friend_UID"], j["UID"]) != 0) {
+                j["result"] = "该好友已将您屏蔽";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            } else {
+                j["result"] = "该好友未将您屏蔽";
+
+                //将数据发送回原客户端
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+
+            }
             
-        } else if (j["type"] == "") {
+        } else if (j["type"] == "send_friend_file") {
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd, j);
+            });
             
-        } else if (j["type"] == "") {
+            //设置为阻塞模式
+            int flags = fcntl(connected_sockfd, F_GETFL, 0);
+            if (flags < 0) {
+                std::cerr << "fcntl(F_GETFL) failed: " << strerror(errno) << std::endl;
+                return;
+            }
+            flags &= ~O_NONBLOCK;
+            if (fcntl(connected_sockfd, F_SETFL, flags) < 0) {
+                std::cerr << "fcntl(F_SETFL) failed: " << strerror(errno) << std::endl;
+                return;
+            }
+
+            //取消监视
+            epoll_ctl(epfd, EPOLL_CTL_DEL, connected_sockfd, NULL);
+
+            pool.add_task([this, fd = connected_sockfd, UID = j["UID"], friend_UID = j["friend_UID"]] {
+                do_recv_file(fd, UID, friend_UID);
+            });
+
+            //直接返回，要读取文件了，不再读取json数据
+            return;
             
+        } else if (j["type"] == "view_file") {
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "file", notifications);
+            j["files"] = notifications;
+
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+
+        } else if (j["type"] == "handle_new_friend_files") {
+
+            std::string friend_UID = j["friend_UID"].get<std::string>();
+            std::string file_name = j["file_name"].get<std::string>();
+            
+            std::string notification = "好友" + redisManager.get_username(friend_UID) + "(UID为:" + friend_UID + ")" + "给你发来了文件 " + file_name;
+            redisManager.delete_notification(j["UID"], "file", notification);
+
+        } else if (j["type"] == "recv_friend_file") {
+            //将数据发送回原客户端
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
+
+            pool.add_task([this, connected_sockfd, file_name = j["file_name"]] {
+                do_send_file(connected_sockfd, file_name);
+            });
+
+
+        } else if (j["type"] == "") {
+
+        } else if (j["type"] == "") {
+
+        } else if (j["type"] == "") {
+
+        } else if (j["type"] == "") {
+
         }
     }
 }
 
+void Server::do_recv_file(int connected_sockfd, std::string UID, std::string friend_UID) {
+    //接收文件
+    struct len_name ln;
+    char lnbuf[1024];
+    char file_path[1024];
+    char buf[1024];
+
+    read(connected_sockfd, lnbuf, 1024);
+    memcpy(&ln, lnbuf, sizeof(ln));
+
+    // LogInfo("len = {}", ln.len);
+
+    sprintf(file_path, "../file_buf/%s", ln.name);
+
+    FILE *fp = fopen(file_path, "wb");
+    if (fp == NULL) {
+        perror("Can't open file");
+        exit(1);
+    }
+
+    ssize_t n;
+    unsigned long sum = 0;
+    while((n = read(connected_sockfd, buf, 1024)) > 0) {
+        fwrite(buf, sizeof(char), n, fp);
+
+        sum += n;
+        // LogInfo("sum = {}", sum);
+        if(sum >= ln.len)	//当接收到足够的长度的时候，就说明文件已读取完毕
+        {
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    LogInfo("接收文件完成");
+
+    //存储消息通知到redis
+    std::string notification = "好友" + redisManager.get_username(UID) + "(UID为:" + UID + ")" + "给你发来了文件 " + ln.name;
+
+    std::vector<std::string> notifications;
+    redisManager.get_notification(friend_UID, "file", notifications);
+
+    //如果重复就删除以前的消息通知保留最新的
+    for (const auto& n : notifications) {
+        if (notification == n) {
+            redisManager.delete_notification(friend_UID, "file", n);
+        }
+    }
+
+    //存储消息通知
+    redisManager.add_notification(friend_UID, "file", notification);
+
+    //查询用户是否在线
+    auto it = map.find(friend_UID);
+
+    //在线
+    if (it != map.end()) {
+        json j;
+        j["type"] = "notice";
+        j["file_notification"] = 1;
+
+        int connected_sockfd2 = it->second;
+
+        pool.add_task([this, connected_sockfd2, j] {
+            do_send(connected_sockfd2, j);
+        });
+    }
+
+    //设置套接字为非阻塞模式
+    int flags = fcntl(connected_sockfd, F_GETFL, 0);
+    if (flags == -1) {
+        std::cerr << "fcntl(F_GETFL) failed" << std::endl;
+        return;
+    }
+    if (fcntl(connected_sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        std::cerr << "fcntl(F_SETFL) failed" << std::endl;
+    }
+    
+    //重新监视
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
+        throw std::runtime_error("Failed to add socket to epoll");
+    }
+}
 
 void Server::do_send(int connected_sockfd, const json& j) {
     //将JSON对象序列化为字符串
@@ -1499,6 +1688,67 @@ void Server::do_send(int connected_sockfd, const json& j) {
         perror("sendmsg");
         return;
     }
+}
+
+void Server::do_send_file(int connected_sockfd, std::string file_name) {
+    char file_path[1024];
+    char buf[1024];
+    struct stat statbuf;
+    struct len_name ln;
+
+    // LogInfo("file_name = {}", file_name);
+
+    sprintf(file_path, "/home/pluto/work/Chatroom/chatroom/Server/file_buf/%s", file_name.c_str());
+    // LogInfo("file_path = {}", file_path);
+
+    if(stat(file_path, &statbuf) == -1)
+    {
+        std::cerr << "Error getting file status: " << strerror(errno) << std::endl;
+    }
+
+    ln.len = statbuf.st_size;
+    // LogInfo("len = {}", ln.len);
+    strcpy(ln.name, file_name.c_str());
+
+    memcpy(buf, &ln, sizeof(ln));
+    write(connected_sockfd, buf, 1024);
+
+    int fp = open(file_path, O_CREAT|O_RDONLY, S_IRUSR|S_IWUSR);
+    if (fp == -1) {
+        // 打开失败，打印错误信息
+        perror("Error opening file");
+        return;
+    }
+
+    off_t offset = 0;
+    ssize_t total_bytes_sent = 0;
+    ssize_t bytes_sent;
+
+    while (total_bytes_sent < ln.len) {
+        bytes_sent = sendfile(connected_sockfd, fp, &offset, ln.len - total_bytes_sent);
+        if (bytes_sent == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            } else {
+                perror("sendfile");
+                break;
+            }
+        }
+        if (bytes_sent == 0) {
+            // 可能是连接关闭或没有更多数据可发送
+            break;
+        }
+        total_bytes_sent += bytes_sent;
+    }
+
+    // LogInfo("sendfile前len = {}", ln.len);
+    // ssize_t tem = sendfile(connected_sockfd, fp, 0, ln.len);
+    // LogInfo("sendfile 返回值 = {}", tem);
+    //返回值检测
+
+    close(fp);
+
+    LogInfo("发送文件完成");
 }
 
 //专门负责检测客户端是否连接

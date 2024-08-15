@@ -13,8 +13,15 @@
 #include <cstring> //包含memset函数
 #include <fcntl.h> //设置非阻塞io
 #include <nlohmann/json.hpp> //JSON库
+#include <sys/stat.h> //查看路径状态
+#include <sys/sendfile.h> //发送文件
 
 using json = nlohmann::json;
+
+struct len_name {
+	unsigned long len;
+	char name[1024];
+};
 
 class Server {
 public:
@@ -24,16 +31,20 @@ public:
     
 private:
     void do_recv(int connected_sockfd);
+    void do_recv_file(int connected_sockfd, std::string UID, std::string friend_UID);
     void do_send(int connected_sockfd, const json& j);
+    void do_send_file(int connected_sockfd, std::string file_name);
     void heartbeat(int connected_sockfd);
 
     int listening_sockfd;
+
     struct sockaddr_in addr;
 
-    // std::vector<int> connected_sockets;
-
     ThreadPool pool;
+
     int epfd;
+    struct epoll_event event;
+    struct epoll_event event2;
     std::vector<struct epoll_event> events;
 
     RedisManager redisManager;
