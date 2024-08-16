@@ -5,6 +5,7 @@ std::unordered_map<std::string, int> notice_map;
 bool confirmed_as_friend = 0;
 bool confirmed_as_block_friend = 1;
 bool confirm_in_group = 0;
+bool confirm_news = 0;
 
 void home_UI(int connecting_sockfd, std::string UID) {
     int n;
@@ -113,6 +114,14 @@ void message_UI(int connecting_sockfd, std::string UID) {
 
             //无需等待信号量，因为不需要返回输出
             send_json(connecting_sockfd, j2);
+            sem_wait(&semaphore); // 等待信号量
+
+            if (confirm_news == 0) {
+                waiting_for_input();
+                continue;
+            } else {
+                confirm_news = 0;
+            }
 
             private_chat(connecting_sockfd, UID, friend_UID);
 
@@ -134,6 +143,14 @@ void message_UI(int connecting_sockfd, std::string UID) {
 
             //无需等待信号量，因为不需要返回输出
             send_json(connecting_sockfd, j2);
+            sem_wait(&semaphore); // 等待信号量
+
+            if (confirm_news == 0) {
+                waiting_for_input();
+                continue;
+            } else {
+                confirm_news = 0;
+            }
 
             //进入群聊界面时，不输入东西退出就会删通知，输入了退出就不删了，难办
             //解决了，是因为群聊给自己也发通知了
@@ -202,7 +219,15 @@ void recv_file_UI(int connecting_sockfd, std::string UID) {
             }
 
             send_json(connecting_sockfd, j2);
+            sem_wait(&semaphore); // 等待信号量
             // LogInfo("信号量未阻塞");
+
+            if (confirm_news == 0) {
+                waiting_for_input();
+                continue;
+            } else {
+                confirm_news = 0;
+            }
 
             recv_friend_file(connecting_sockfd, UID, friend_UID, file_name);
 
@@ -232,6 +257,14 @@ void recv_file_UI(int connecting_sockfd, std::string UID) {
             }
 
             send_json(connecting_sockfd, j2);
+            sem_wait(&semaphore); // 等待信号量
+
+            if (confirm_news == 0) {
+                waiting_for_input();
+                continue;
+            } else {
+                confirm_news = 0;
+            }
 
             recv_group_file(connecting_sockfd, UID, GID, file_name);
 
@@ -260,6 +293,7 @@ void recv_friend_file(int connecting_sockfd, std::string UID, std::string friend
         json j2;
         j2["type"] = "recv_file";
         j2["file_name"] = file_name;
+        j2["UID"] = UID;
 
         send_json(connecting_sockfd, j2);
         sem_wait(&semaphore); // 等待信号量
@@ -289,6 +323,7 @@ void recv_group_file(int connecting_sockfd, std::string UID, std::string GID, st
         json j2;
         j2["type"] = "recv_file";
         j2["file_name"] = file_name;
+        j2["UID"] = UID;
 
         send_json(connecting_sockfd, j2);
         sem_wait(&semaphore); // 等待信号量

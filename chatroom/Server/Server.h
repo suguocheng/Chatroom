@@ -34,7 +34,7 @@ private:
     void do_recv_friend_file(int connected_sockfd, std::string UID, std::string friend_UID);
     void do_recv_group_file(int connected_sockfd, std::string UID, std::string GID);
     void do_send(int connected_sockfd, const json& j);
-    void do_send_file(int connected_sockfd, std::string file_name);
+    void do_send_file(int connected_sockfd, std::string file_name, std::string UID);
     void heartbeat(int connected_sockfd);
 
     int listening_sockfd;
@@ -51,6 +51,7 @@ private:
     RedisManager redisManager;
 
     std::unordered_map<std::string, int> map;
+    std::unordered_map<int, int> heartbeat_map;
     std::vector<std::string> online_UID;
 };
 

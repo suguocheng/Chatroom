@@ -104,8 +104,12 @@ Server::Server(int port) : events(10), pool(20) {
                 if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
                     throw std::runtime_error("Failed to add socket to epoll");
                 }
-
-                // connected_sockets.push_back(connected_sockfd);
+                
+                heartbeat_map[connected_sockfd] = 1; 
+                pool.add_task([this, connected_sockfd] {
+                    // LogTrace("something read happened");
+                    heartbeat(connected_sockfd);
+                });
 
             } else if (events[i].events & EPOLLIN) {
 
@@ -132,6 +136,9 @@ Server::~Server() {
 
 
 void Server::do_recv(int connected_sockfd) {
+    //添加心跳
+    heartbeat_map[connected_sockfd] = 1;
+
     //创建json
     json j;
 
@@ -288,6 +295,8 @@ void Server::do_recv(int connected_sockfd) {
                         });
 
                         usleep(10000);
+
+                        LogInfo("有用户登录");
                         
                         //将数据发送回原客户端
                         pool.add_task([this, connected_sockfd, j] {
@@ -492,6 +501,8 @@ void Server::do_recv(int connected_sockfd) {
 
             j["result"] = "退出成功";
 
+            LogInfo("有用户下线");
+
             //将数据发送回原客户端
             pool.add_task([this, connected_sockfd, j] {
                 do_send(connected_sockfd,j);
@@ -531,6 +542,8 @@ void Server::do_recv(int connected_sockfd) {
 
                     //解除uid与在线套接字的绑定
                     map.erase(j["UID"]);
+
+                    LogInfo("有用户下线");
 
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
@@ -970,7 +983,34 @@ void Server::do_recv(int connected_sockfd) {
             std::string friend_UID = j["friend_UID"].get<std::string>();
             std::string notification = "好友" + redisManager.get_username(friend_UID) + "(UID为:" + friend_UID + ")" + "给你发来了新消息";
 
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "message", notifications);
+
+            int judge = 0;
+            //如果重复就说明有这个申请
+            for (const auto& n : notifications) {
+                if (notification == n) {
+                    judge = 1;
+                }
+            }
+
+            if (judge == 0) {
+
+                j["result"] = "该好友没有向您发送新消息";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+                continue;
+            }
+
             redisManager.delete_notification(j["UID"], "message", notification);
+
+            j["result"] = "ok";
+
+            //试一下这里没有j result，客户端读取会不会炸
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
 
         } else if (j["type"] == "create_group") {
             if(redisManager.add_group(j["group_name"], j["group_owner_UID"]) == 0) {
@@ -1596,7 +1636,32 @@ void Server::do_recv(int connected_sockfd) {
             std::string GID = j["GID"].get<std::string>();
             std::string notification = "群聊" + redisManager.get_group_name(GID) + "(GID为:" + GID + ")" + "有新消息";
 
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "message", notifications);
+
+            int judge = 0;
+            //如果重复就说明有这个申请
+            for (const auto& n : notifications) {
+                if (notification == n) {
+                    judge = 1;
+                }
+            }
+
+            if (judge == 0) {
+
+                j["result"] = "该群组没有新信息";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+                continue;
+            }
+
             redisManager.delete_notification(j["UID"], "message", notification);
+
+            j["result"] = "ok";
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
             
         } else if (j["type"] == "confirmed_as_block_friend") {
             //已被屏蔽
@@ -1660,9 +1725,34 @@ void Server::do_recv(int connected_sockfd) {
         } else if (j["type"] == "handle_new_friend_files") {
             std::string friend_UID = j["friend_UID"].get<std::string>();
             std::string file_name = j["file_name"].get<std::string>();
-            
             std::string notification = "好友" + redisManager.get_username(friend_UID) + "(UID为:" + friend_UID + ")" + "给你发来了文件 " + file_name;
+            
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "file", notifications);
+
+            int judge = 0;
+            //如果重复就说明有这个申请
+            for (const auto& n : notifications) {
+                if (notification == n) {
+                    judge = 1;
+                }
+            }
+
+            if (judge == 0) {
+
+                j["result"] = "该好友没有向您发送该文件";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+                continue;
+            }
+            
             redisManager.delete_notification(j["UID"], "file", notification);
+
+            j["result"] = "ok";
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
 
         } else if (j["type"] == "recv_file") {
             //将数据发送回原客户端
@@ -1672,8 +1762,8 @@ void Server::do_recv(int connected_sockfd) {
 
             usleep(100000);
 
-            pool.add_task([this, connected_sockfd, file_name = j["file_name"]] {
-                do_send_file(connected_sockfd, file_name);
+            pool.add_task([this, connected_sockfd, file_name = j["file_name"], UID = j["UID"]] {
+                do_send_file(connected_sockfd, file_name, UID);
             });
 
 
@@ -1708,9 +1798,34 @@ void Server::do_recv(int connected_sockfd) {
         } else if (j["type"] == "handle_new_group_files") {
             std::string GID = j["GID"].get<std::string>();
             std::string file_name = j["file_name"].get<std::string>();
-            
             std::string notification = "群聊" + redisManager.get_group_name(GID) + "(GID为:" + GID + ")" + "发来了文件 " + file_name;
+
+            std::vector<std::string> notifications;
+            redisManager.get_notification(j["UID"], "file", notifications);
+
+            int judge = 0;
+            //如果重复就说明有这个申请
+            for (const auto& n : notifications) {
+                if (notification == n) {
+                    judge = 1;
+                }
+            }
+
+            if (judge == 0) {
+
+                j["result"] = "该群组没有发送该文件";
+                pool.add_task([this, connected_sockfd, j] {
+                    do_send(connected_sockfd,j);
+                });
+                continue;
+            }
+
             redisManager.delete_notification(j["UID"], "file", notification);
+
+            j["result"] = "ok";
+            pool.add_task([this, connected_sockfd, j] {
+                do_send(connected_sockfd,j);
+            });
 
         } else if (j["type"] == "") {
 
@@ -1721,6 +1836,9 @@ void Server::do_recv(int connected_sockfd) {
 }
 
 void Server::do_recv_friend_file(int connected_sockfd, std::string UID, std::string friend_UID) {
+    //暂时断开心跳检测
+    heartbeat_map.erase(connected_sockfd);
+
     //接收文件
     struct len_name ln;
     char lnbuf[1024];
@@ -1803,9 +1921,18 @@ void Server::do_recv_friend_file(int connected_sockfd, std::string UID, std::str
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
         throw std::runtime_error("Failed to add socket to epoll");
     }
+
+    //重启心跳检测
+    heartbeat_map[connected_sockfd] = 1;
+    pool.add_task([this, connected_sockfd] {
+        heartbeat(connected_sockfd);
+    });
 }
 
 void Server::do_recv_group_file(int connected_sockfd, std::string UID, std::string GID) {
+    //暂时断开心跳检测
+    heartbeat_map.erase(connected_sockfd);
+
     //接收文件
     struct len_name ln;
     char lnbuf[1024];
@@ -1967,9 +2094,16 @@ void Server::do_recv_group_file(int connected_sockfd, std::string UID, std::stri
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
         throw std::runtime_error("Failed to add socket to epoll");
     }
+
+    //重启心跳检测
+    heartbeat_map[connected_sockfd] = 1;
+    pool.add_task([this, connected_sockfd] {
+        heartbeat(connected_sockfd);
+    });
 }
 
 void Server::do_send(int connected_sockfd, const json& j) {
+
     //将JSON对象序列化为字符串
     std::string json_str = j.dump(); 
 
@@ -2003,7 +2137,13 @@ void Server::do_send(int connected_sockfd, const json& j) {
     }
 }
 
-void Server::do_send_file(int connected_sockfd, std::string file_name) {
+void Server::do_send_file(int connected_sockfd, std::string file_name, std::string UID) {
+    //暂时断开心跳检测
+    heartbeat_map.erase(connected_sockfd);
+
+    //暂时解除uid与在线套接字的绑定
+    map.erase(UID);
+
     char file_path[1024];
     char buf[1024];
     struct stat statbuf;
@@ -2062,43 +2202,50 @@ void Server::do_send_file(int connected_sockfd, std::string file_name) {
     close(fp);
 
     LogInfo("发送文件完成");
+
+    //重启心跳检测
+    heartbeat_map[connected_sockfd] = 1;
+    pool.add_task([this, connected_sockfd] {
+        heartbeat(connected_sockfd);
+    });
+
+    //重新绑定uid与在线套接字
+    map[UID] = connected_sockfd;
 }
 
 //专门负责检测客户端是否连接
-// void Server::heartbeat(int connected_sockfd) {
-//     json j;
+void Server::heartbeat(int connected_sockfd) {
+    while (1) {
+        auto it = heartbeat_map.find(connected_sockfd);
 
-//     struct msghdr msg = {0};
-//     struct iovec iov[1];
-//     char buf[1024] = {0};
+        //存在
+        if (it != heartbeat_map.end()) {
 
-//     iov[0].iov_base = buf;
-//     iov[0].iov_len = sizeof(buf) - 1;
-//     msg.msg_iov = iov;
-//     msg.msg_iovlen = 1;
+            if (heartbeat_map[connected_sockfd] == 1) {
+                heartbeat_map[connected_sockfd] = 0;
+                sleep(60);
 
-//     ssize_t received_len = recvmsg(connected_sockfd, &msg, 0);
-//     if (received_len < 0) {
-//         perror("recvmsg");
-//         return;
-//     }
+            } else {
 
-//     if (received_len == 0 || buf[0] == '\0') {
-//         return; // 继续等待下一个数据
-//     }
+                for (std::string uid : online_UID) {
+                    auto it = map.find(uid);
 
-//     buf[received_len] = '\0'; // 确保字符串结束符
+                    if (it != map.end()) {
+                        if (it->second == connected_sockfd) {
+                            map.erase(it);
+                            LogInfo("超时断开与客户端的连接");
+                            close(connected_sockfd);
+                            heartbeat_map.erase(connected_sockfd);
+                            return;
+                        }
+                    }
+                }
+                heartbeat_map[connected_sockfd] = 1;
+            }
 
-//     // LogInfo("buf: {}", buf);
+        } else {
+            return;
+        }
 
-//     try {
-//         j = json::parse(buf); // 解析 JSON 字符串
-//     } catch (const std::exception& e) {
-//         std::cerr << "Failed to parse JSON: " << e.what() << std::endl;
-//         return;
-//     }
-
-//     if (j["type"] == "heartbeat") {
-        
-//     }
-// }
+    }
+}

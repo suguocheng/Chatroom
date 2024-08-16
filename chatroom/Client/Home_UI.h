@@ -13,6 +13,7 @@ extern std::unordered_map<std::string, int> notice_map;
 extern bool confirmed_as_friend;
 extern bool confirmed_as_block_friend;
 extern bool confirm_in_group;
+extern bool confirm_news;
 
 struct len_name {
 	unsigned long len;

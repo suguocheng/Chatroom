@@ -113,6 +113,7 @@ void Client::do_recv() {
         if (received_len < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // 没有数据可读，稍后重试
+                // LogInfo("没有数据可读");
                 continue;
             } else {
                 perror("recvmsg");
@@ -123,7 +124,9 @@ void Client::do_recv() {
         buf[received_len] = '\0'; // 确保字符串结束符
 
         if (received_len == 0 || buf[0] == '\0') {
-            continue; // 继续等待下一个数据
+            std::cout << std::endl;
+            LogInfo("与服务器断开连接");
+            break;
         }
 
         // LogInfo("buf = {}", buf);
@@ -283,6 +286,17 @@ void Client::do_recv() {
             // sem_getvalue(&semaphore, &sem_value);
             // LogInfo("post后semaphore = {}", sem_value);
 
+        } else if (j["type"] == "handle_new_friend_messages") {
+            std::cout << j["result"] << std::endl;
+
+            if (j["result"] == "ok") {
+                confirm_news = 1;
+            } else {
+                confirm_news = 0;
+            }
+
+            sem_post(&semaphore); // 释放信号量
+
         } else if (j["type"] == "create_group") {
             std::cout << j["result"] << std::endl;
             sem_post(&semaphore); // 释放信号量
@@ -367,6 +381,17 @@ void Client::do_recv() {
         } else if (j["type"] == "send_friend_file") {
             sem_post(&semaphore); // 释放信号量
 
+        } else if (j["type"] == "handle_new_group_messages") {
+            std::cout << j["result"] << std::endl;
+
+            if (j["result"] == "ok") {
+                confirm_news = 1;
+            } else {
+                confirm_news = 0;
+            }
+
+            sem_post(&semaphore); // 释放信号量
+            
         } else if (j["type"] == "confirmed_as_block_friend") {
             if (j["result"] == "该好友已将您屏蔽") {
                 confirmed_as_block_friend = 1;
@@ -381,6 +406,17 @@ void Client::do_recv() {
             }
             sem_post(&semaphore); // 释放信号量
             
+        } else if (j["type"] == "handle_new_friend_files") {
+            std::cout << j["result"] << std::endl;
+
+            if (j["result"] == "ok") {
+                confirm_news = 1;
+            } else {
+                confirm_news = 0;
+            }
+
+            sem_post(&semaphore); // 释放信号量
+
         } else if (j["type"] == "recv_file") {
             //接收文件
             struct len_name ln;
@@ -429,8 +465,17 @@ void Client::do_recv() {
         } else if (j["type"] == "send_group_file") {
             sem_post(&semaphore); // 释放信号量
 
-        } else if (j["type"] == "") {
-            
+        } else if (j["type"] == "handle_new_group_files") {
+            std::cout << j["result"] << std::endl;
+
+            if (j["result"] == "ok") {
+                confirm_news = 1;
+            } else {
+                confirm_news = 0;
+            }
+
+            sem_post(&semaphore); // 释放信号量
+
         } else if (j["type"] == "") {
             
         } else if (j["type"] == "") {
