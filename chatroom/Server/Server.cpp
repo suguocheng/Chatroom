@@ -2223,7 +2223,7 @@ void Server::heartbeat(int connected_sockfd) {
 
             if (heartbeat_map[connected_sockfd] == 1) {
                 heartbeat_map[connected_sockfd] = 0;
-                sleep(60);
+                sleep(120);
 
             } else {
 
