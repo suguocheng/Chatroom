@@ -17,7 +17,7 @@ using json = nlohmann::json;
 
 class Client {
 public:
-    Client(int port);
+    Client(char* ip, int port);
     ~Client();
 
     void do_message_notice();

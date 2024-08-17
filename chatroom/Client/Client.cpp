@@ -6,7 +6,7 @@ sem_t friend_request_notice_semaphore;
 sem_t group_request_notice_semaphore;
 sem_t file_notice_semaphore;
 
-Client::Client(int port) : pool(10){
+Client::Client(char* ip, int port) : pool(10){
 
     sem_init(&message_notice_semaphore, 0, 0);
     sem_init(&friend_request_notice_semaphore, 0, 0);
@@ -23,7 +23,7 @@ Client::Client(int port) : pool(10){
     addr = {};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    inet_pton(AF_INET, ip, &addr.sin_addr);
     memset(addr.sin_zero, 0, sizeof(addr.sin_zero));
 
     //连接到服务器

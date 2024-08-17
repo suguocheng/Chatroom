@@ -136,8 +136,6 @@ void sign_up_UI(int connecting_sockfd) {
 
     send_json(connecting_sockfd, j);
     sem_wait(&semaphore); // 等待信号量
-
-    std::cin.get(); //读取换行符
 }
 
 void retrieve_password(int connecting_sockfd) {
