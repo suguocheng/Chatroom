@@ -5,10 +5,27 @@ std::string current_UID = "";
 sem_t semaphore; // 定义信号量
 
 void main_menu_UI(int connecting_sockfd) {
+    //屏蔽ctrl+c等
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
-    
+
+    //屏蔽ctrl+d
+    struct termios tty;
+
+    // 获取当前终端属性
+    if (tcgetattr(STDIN_FILENO, &tty) < 0) {
+        perror("tcgetattr");
+        return;
+    }
+
+    // 关闭EOF处理
+    tty.c_cc[VEOF] = 0;
+
+    // 应用新的终端属性
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &tty) < 0) {
+        perror("tcsetattr");
+    }
 
     //初始化信号量
     sem_init(&semaphore, 0, 0);
@@ -119,6 +136,8 @@ void sign_up_UI(int connecting_sockfd) {
 
     send_json(connecting_sockfd, j);
     sem_wait(&semaphore); // 等待信号量
+
+    std::cin.get(); //读取换行符
 }
 
 void retrieve_password(int connecting_sockfd) {

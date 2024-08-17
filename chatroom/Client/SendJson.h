@@ -8,4 +8,4 @@
 using json = nlohmann::json;
 
 int send_json(int connecting_sockfd, const json& j);
-int receive_json(int sockfd, json& j);
+// int receive_json(int sockfd, json& j);

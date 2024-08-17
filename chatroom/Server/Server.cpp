@@ -1069,7 +1069,7 @@ void Server::do_recv(int connected_sockfd) {
                     //存储好友申请通知到redis
                     std::string UID = j["UID"].get<std::string>();
                     std::string search_GID = j["search_GID"].get<std::string>();
-                    std::string notification = "用户" + UID + "想加入群聊" + search_GID;
+                    std::string notification = "用户" + redisManager.get_username(UID) + "(UID为:" + UID + ")" + "想加入群聊" + search_GID;
 
                     //存储群组申请通知
                     redisManager.add_notification(redisManager.get_group_owner_UID(j["search_GID"]), "group_request", notification);
@@ -1163,7 +1163,7 @@ void Server::do_recv(int connected_sockfd) {
                 } else {
                     std::string request_UID = j["request_UID"].get<std::string>();
                     std::string request_GID = j["request_GID"].get<std::string>();
-                    std::string notification = "用户" + request_UID + "想加入群聊" + request_GID;
+                    std::string notification = "用户" + redisManager.get_username(request_UID) + "(UID为:" + request_UID + ")" + "想加入群聊" + request_GID;
 
                     std::vector<std::string> notifications;
                     redisManager.get_notification(j["UID"], "group_request", notifications);
@@ -1353,8 +1353,18 @@ void Server::do_recv(int connected_sockfd) {
                 });
             }
         } else if (j["type"] == "remove_group_member") {
+            std::vector<std::string> members_UID;
+            redisManager.get_group_members(j["GID"], members_UID);
+
+            int judge = 0;
+            for (std::string member_UID : members_UID) {
+                if (j["member_UID"] == member_UID) {
+                    judge = 1;
+                }
+            }
+
             if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
-                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == (bool)1) {
+                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 1) {
 
                     redisManager.delete_administrator(j["GID"], j["member_UID"]);
                     redisManager.delete_group_member(j["GID"], j["member_UID"]);
@@ -1368,6 +1378,14 @@ void Server::do_recv(int connected_sockfd) {
 
                 } else if (j["member_UID"] == j["UID"]) {
                     j["result"] = "群主不能移除自己";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else if (judge == 0) {
+                    j["result"] = "该用户不是群成员";
 
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
@@ -1388,6 +1406,14 @@ void Server::do_recv(int connected_sockfd) {
             } else if (redisManager.check_administrator(j["GID"], j["UID"]) == 1) {
                 if (j["member_UID"] == redisManager.get_group_owner_UID(j["GID"]) || redisManager.check_administrator(j["GID"], j["member_UID"])) {
                     j["result"] = "您没有权限移除成员";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else if (judge == 0) {
+                    j["result"] = "该用户不是群成员";
 
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
@@ -1415,9 +1441,35 @@ void Server::do_recv(int connected_sockfd) {
 
             }
         } else if (j["type"] == "set_up_administrator") {
-            if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+            std::vector<std::string> members_UID;
+            redisManager.get_group_members(j["GID"], members_UID);
 
-                if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 0) {
+            int judge = 0;
+            for (std::string member_UID : members_UID) {
+                if (j["member_UID"] == member_UID) {
+                    judge = 1;
+                }
+            }
+
+            if (j["UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+                if (j["member_UID"] == redisManager.get_group_owner_UID(j["GID"])) {
+
+                    j["result"] = "您已是群主，不能被设为管理员";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else if (judge == 0) {
+                    j["result"] = "该用户不是群成员";
+
+                    //将数据发送回原客户端
+                    pool.add_task([this, connected_sockfd, j] {
+                        do_send(connected_sockfd,j);
+                    });
+
+                } else if (redisManager.check_administrator(j["GID"], j["member_UID"]) == 0) {
                     redisManager.add_administrator(j["GID"], j["member_UID"]);
 
                     j["result"] = "设置成功";
@@ -1427,9 +1479,8 @@ void Server::do_recv(int connected_sockfd) {
                         do_send(connected_sockfd,j);
                     });
 
-                } else if (j["member_UID"] == redisManager.get_group_owner_UID(j["GID"])) {
-
-                    j["result"] = "您已是群主，不能被设为管理员";
+                } else if (judge == 0) {
+                    j["result"] = "该用户不是群成员";
 
                     //将数据发送回原客户端
                     pool.add_task([this, connected_sockfd, j] {
@@ -1917,8 +1968,12 @@ void Server::do_recv_friend_file(int connected_sockfd, std::string UID, std::str
         std::cerr << "fcntl(F_SETFL) failed" << std::endl;
     }
     
+    struct epoll_event event3;
+    event3.events = EPOLLIN | EPOLLET; // 读事件以及边缘触发模式
+    event3.data.fd = connected_sockfd;
+
     //重新监视
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event3) < 0) {
         throw std::runtime_error("Failed to add socket to epoll");
     }
 
@@ -2090,8 +2145,13 @@ void Server::do_recv_group_file(int connected_sockfd, std::string UID, std::stri
         std::cerr << "fcntl(F_SETFL) failed" << std::endl;
     }
     
+
+    struct epoll_event event3;
+    event3.events = EPOLLIN | EPOLLET; // 读事件以及边缘触发模式
+    event3.data.fd = connected_sockfd;
+
     //重新监视
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event2) < 0) {
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, connected_sockfd, &event3) < 0) {
         throw std::runtime_error("Failed to add socket to epoll");
     }
 
@@ -2114,7 +2174,7 @@ void Server::do_send(int connected_sockfd, const json& j) {
     struct iovec iov[1];
 
     //存储数据
-    char buf[1024];
+    char buf[10240];
     
     // 确保缓冲区大小足够
     if (json_str.size() >= sizeof(buf)) {

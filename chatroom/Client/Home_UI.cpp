@@ -11,7 +11,8 @@ void home_UI(int connecting_sockfd, std::string UID) {
     int n;
     while (1) {
         system("clear");
-        std::cout << "主页" << std::endl;
+        std::cout << "主页(UID:" << UID << ")" << std::endl;
+
         std::cout << "1.消息";
         //这里加个通知
         if(notice_map["message_notification"] == 1) {
@@ -252,7 +253,7 @@ void recv_file_UI(int connecting_sockfd, std::string UID) {
 
             j2["file_name"] = file_name;
 
-            if (GID == "0") {
+            if (file_name == "0") {
                 return;
             }
 
@@ -632,6 +633,13 @@ void private_chat(int connecting_sockfd, std::string UID, std::string friend_UID
             if (message == "0") {
                 return;
             } else if (message == "") {
+                continue;
+            }
+
+            if(message.size() > 1000) {
+                std::cout << "一次最多发送1000字节的消息" << std::endl;
+                std::cout << "按回车键继续..." << std::endl;
+                std::cin.get(); // 等待用户输入
                 continue;
             }
 
@@ -1031,6 +1039,13 @@ void group_chat(int connecting_sockfd, std::string UID, std::string GID) {
             if (message == "0") {
                 return;
             } else if (message == "") {
+                continue;
+            }
+
+            if(message.size() > 1000) {
+                std::cout << "一次最多发送1000字节的消息" << std::endl;
+                std::cout << "按回车键继续..." << std::endl;
+                std::cin.get(); // 等待用户输入
                 continue;
             }
 

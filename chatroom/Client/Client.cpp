@@ -101,14 +101,14 @@ void Client::do_file_notice() {
 void Client::do_recv() {
     struct msghdr msg = {0};
     struct iovec iov[1];
-    char buf[1024] = {0};
+    char buf[10240] = {0};
 
     iov[0].iov_base = buf;
     iov[0].iov_len = sizeof(buf) - 1;
     msg.msg_iov = iov;
     msg.msg_iovlen = 1;
 
-    while(1) {
+    while (1) {
         ssize_t received_len = recvmsg(connecting_sockfd, &msg, 0);
         if (received_len < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
