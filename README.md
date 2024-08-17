@@ -17,7 +17,7 @@
 
 
 
-![](/home/pluto/Downloads/未命名绘图.drawio (1).png)
+![](https://github.com/suguocheng/Chatroom/客户端功能图示.png)
 
 
 
