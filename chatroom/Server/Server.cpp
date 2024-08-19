@@ -188,6 +188,7 @@ void Server::do_recv(int connected_sockfd) {
                     }
                 }
             }
+            close(connected_sockfd);
 
             return;
         }
